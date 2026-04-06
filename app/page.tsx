@@ -1,13 +1,6 @@
 import SpendingChart from "./components/SpendingChart";
 import SpendingTimeline from "./components/SpendingTimeline";
-import type { SpendingEntry } from "./api/spending/route";
-
-async function getSpending(): Promise<SpendingEntry[]> {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-  const res = await fetch(`${base}/api/spending`, { cache: "no-store" });
-  if (!res.ok) return [];
-  return res.json();
-}
+import { getSpending } from "./lib/getSpending";
 
 export default async function Home() {
   const entries = await getSpending();
