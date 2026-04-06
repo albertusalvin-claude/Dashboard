@@ -1,9 +1,11 @@
 import SpendingChart from "./components/SpendingChart";
 import SpendingTimeline from "./components/SpendingTimeline";
+import ShoppingList from "./components/ShoppingList";
 import { getSpending } from "./lib/getSpending";
+import { getShoppingList } from "./lib/getShoppingList";
 
 export default async function Home() {
-  const entries = await getSpending();
+  const [entries, shoppingItems] = await Promise.all([getSpending(), getShoppingList()]);
 
   const totalSpend = entries.reduce((sum, e) => sum + e.amount, 0);
   const thisMonth = new Date().toISOString().slice(0, 7);
@@ -19,7 +21,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Spending Dashboard</h1>
           <p className="text-sm text-gray-400 mt-1">Synced from Notion</p>
@@ -42,8 +44,9 @@ export default async function Home() {
           </div>
         </div>
 
-        <div className="mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <SpendingChart entries={entries} />
+          <ShoppingList items={shoppingItems} />
         </div>
 
         <div>
