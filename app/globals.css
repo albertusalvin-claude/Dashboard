@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #EAEDE1;
+  --card: #F6F7F0;
+  --ink: #1B3327;
+  --ink-soft: #42574a;
+  --kale: #4E7043;
+  --blueberry: #403A7A;
+  --chili: #CB3A1E;
+  --gold: #B4832A;
+  --line: rgba(27, 51, 39, 0.14);
+  --line-strong: rgba(27, 51, 39, 0.28);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-mono: var(--font-space-mono), var(--font-geist-mono);
+  --font-display: var(--font-bricolage);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-kale: var(--kale);
+  --color-blueberry: var(--blueberry);
+  --color-chili: var(--chili);
+  --color-gold: var(--gold);
+  --color-line: var(--line);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }

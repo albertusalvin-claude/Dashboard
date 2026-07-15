@@ -24,7 +24,7 @@ export default function SpendingChart({ entries }: Props) {
   const data = Object.entries(monthlyMap)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, total]) => ({
-      month: new Date(month + "-01").toLocaleString("default", {
+      month: new Date(month + "-01").toLocaleString("en-AU", {
         month: "short",
         year: "2-digit",
       }),

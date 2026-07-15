@@ -8,10 +8,11 @@ export type SpendingEntry = {
   date: string;
   notes: string;
   paymentMethod: string;
+  store: string;
 };
 
 export async function GET() {
-  const databaseId = process.env.NOTION_DATABASE_ID;
+  const databaseId = process.env.NOTION_SPENDING_ID;
   const apiKey = process.env.NOTION_API_KEY;
 
   if (!databaseId || !apiKey) {
@@ -45,9 +46,10 @@ export async function GET() {
         item: props.Item?.title?.[0]?.plain_text ?? "",
         amount: props.Amount?.number ?? 0,
         category: props.Category?.select?.name ?? "",
-        date: props.Date?.date?.start ?? "",
+        date: (props.Date?.date?.start ?? "").slice(0, 10),
         notes: props.Notes?.rich_text?.[0]?.plain_text ?? "",
         paymentMethod: props["Payment Method"]?.select?.name ?? "",
+        store: props.Store?.select?.name ?? "",
       };
     })
     .filter((e: SpendingEntry) => e.date);
