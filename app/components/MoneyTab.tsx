@@ -1,3 +1,5 @@
+"use client";
+
 import SpendingTimeline from "./SpendingTimeline";
 import ShoppingList from "./ShoppingList";
 import SpendingBreakdown from "./SpendingBreakdown";
