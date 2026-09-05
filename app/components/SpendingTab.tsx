@@ -14,8 +14,7 @@ type Props = {
   topCategory: string;
 };
 
-export default function MoneyTab({ entries, shoppingItems, monthSpend, totalSpend, topCategory }: Props) {
-  const groceries = entries.filter((e) => e.category === "Groceries");
+export default function SpendingTab({ entries, shoppingItems, monthSpend, totalSpend, topCategory }: Props) {
   const oneOff = entries.filter((e) => e.category !== "Groceries");
 
   const stats = [
@@ -53,27 +52,6 @@ export default function MoneyTab({ entries, shoppingItems, monthSpend, totalSpen
           </summary>
           <div className="mt-3">
             <SpendingTimeline entries={oneOff} />
-          </div>
-        </details>
-      </div>
-
-      {/* Groceries */}
-      <div className="bg-card rounded-2xl border border-line p-5 space-y-4">
-        <h3 className="font-display font-bold text-lg text-ink">Groceries</h3>
-        <SpendingBreakdown
-          entries={groceries}
-          title="Groceries"
-          pieKey={(e) => e.store}
-          pieLabel="store"
-        />
-        <details className="group">
-          <summary className="cursor-pointer list-none flex items-center justify-between py-2 select-none border-t border-line pt-4">
-            <span className="font-mono text-xs text-ink-soft uppercase tracking-wide">Timeline</span>
-            <span className="font-mono text-xs text-ink-soft group-open:hidden">Show ▾</span>
-            <span className="font-mono text-xs text-ink-soft hidden group-open:inline">Hide ▴</span>
-          </summary>
-          <div className="mt-3">
-            <SpendingTimeline entries={groceries} />
           </div>
         </details>
       </div>

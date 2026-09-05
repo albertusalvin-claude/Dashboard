@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/money", label: "overview" },
   { href: "/money/projection", label: "projection" },
+  { href: "/money/spending", label: "spending" },
 ] as const;
 
 export default function SubTabNav() {
