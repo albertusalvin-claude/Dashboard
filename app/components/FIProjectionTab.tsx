@@ -19,6 +19,7 @@ import {
   type FIFieldGroup,
 } from "../lib/fiProjection";
 import { saveFIAssumptions } from "../actions/fiAssumptions";
+import type { AssetGrowthEntry } from "../lib/getAssetGrowthLog";
 
 // Same fixed categorical order already used across the app's charts
 // (see SpendingBreakdown.tsx) — kept for visual consistency rather than
@@ -42,12 +43,21 @@ const ratio = (v: number) => `${v.toFixed(2)}x`;
 // Each chart mode shows exactly one asset-side series (never combined) plus
 // the Spending line, which is added separately in every mode.
 const ASSET_VIEWS = [
-  { key: "total", label: "Total Asset", dataKey: "asset", name: "Total Asset", color: COLOR.asset },
+  { key: "total", label: "Total Liquid Asset", dataKey: "asset", name: "Total Liquid Asset", color: COLOR.asset },
   { key: "investment", label: "Investment", dataKey: "investment", name: "Investment", color: COLOR.investment },
   { key: "saving", label: "Saving", dataKey: "saving", name: "Saving", color: COLOR.saving },
   { key: "superannuation", label: "Superannuation", dataKey: "superannuation", name: "Superannuation", color: COLOR.superannuation },
 ] as const;
 type AssetViewKey = (typeof ASSET_VIEWS)[number]["key"];
+
+// Which merged-row field holds the logged "actual" value for each chart mode.
+const ACTUAL_KEY: Record<AssetViewKey, "actualAsset" | "actualInvestment" | "actualSaving" | "actualSuperannuation"> = {
+  total: "actualAsset",
+  investment: "actualInvestment",
+  saving: "actualSaving",
+  superannuation: "actualSuperannuation",
+};
+const ACTUAL_COLOR = "#42574a"; // ink-soft — neutral, distinct from the categorical palette
 
 const GROUP_LABEL: Record<FIFieldGroup, string> = {
   income: "Income",
@@ -108,9 +118,12 @@ function FieldGroup({
   );
 }
 
-type Props = { initialAssumptions: FIAssumptions };
+type Props = {
+  initialAssumptions: FIAssumptions;
+  actualLog: AssetGrowthEntry[];
+};
 
-export default function FIProjectionTab({ initialAssumptions }: Props) {
+export default function FIProjectionTab({ initialAssumptions, actualLog }: Props) {
   // `draft` is what the inputs show as you type. `applied` is what the
   // chart/table are actually computed from. They only sync — and Notion
   // only gets written to — when Rebuild is clicked.
@@ -123,6 +136,35 @@ export default function FIProjectionTab({ initialAssumptions }: Props) {
 
   const rows = useMemo(() => computeFIProjection(applied), [applied]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(applied);
+
+  // Attach the earliest logged month per calendar year onto the matching
+  // projection row, so actual and projected can share one chart. Each
+  // projection row represents the *beginning* of its year, so the fairest
+  // "actual" point is the earliest one logged that year, not the latest.
+  // "Actual investment" maps from the overview's rolled-up Liquid Investment;
+  // Total Liquid Asset excludes Stock Options on both sides, so the
+  // comparison stays apples-to-apples (the projection never modeled Stock
+  // Options either).
+  const chartRows = useMemo(() => {
+    const earliestByYear = new Map<number, AssetGrowthEntry>();
+    for (const entry of actualLog) {
+      const year = parseInt(entry.month.slice(0, 4), 10);
+      const existing = earliestByYear.get(year);
+      if (!existing || entry.month < existing.month) earliestByYear.set(year, entry);
+    }
+    return rows.map((r) => {
+      const actual = earliestByYear.get(r.calendarYear);
+      return {
+        ...r,
+        actualAsset: actual?.liquidAsset,
+        actualInvestment: actual?.liquidInvestment,
+        actualSaving: actual?.savings,
+        actualSuperannuation: actual?.superannuation,
+      };
+    });
+  }, [rows, actualLog]);
+  const actualKey = ACTUAL_KEY[chartMode];
+  const hasActualForMode = chartRows.some((r) => r[actualKey] != null);
 
   const setField = (key: keyof FIAssumptions, value: number) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -148,7 +190,22 @@ export default function FIProjectionTab({ initialAssumptions }: Props) {
       {/* Result */}
       <div className="bg-card rounded-2xl border border-line p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-display font-bold text-lg text-ink">Projection</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-display font-bold text-lg text-ink">Projection</h3>
+            <div className="relative group">
+              <span className="w-4 h-4 rounded-full bg-ink text-paper text-[10px] font-mono leading-none flex items-center justify-center cursor-help select-none shrink-0">
+                ?
+              </span>
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-72 -translate-x-1/2 rounded-lg border border-line bg-card px-3 py-2 text-xs text-ink-soft leading-relaxed opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+              >
+                The dashed "Actual" line uses each year's earliest logged entry, matching the projection's
+                own beginning-of-year convention. Total Liquid Asset (projected and actual) excludes Stock
+                Options — they're illiquid, and the projection model doesn't account for them at all.
+              </div>
+            </div>
+          </div>
           <div className="flex gap-2">
             {(["chart", "table"] as const).map((v) => (
               <button
@@ -180,7 +237,7 @@ export default function FIProjectionTab({ initialAssumptions }: Props) {
 
         {view === "chart" ? (
           <ResponsiveContainer width="100%" height={420}>
-            <ComposedChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <ComposedChart data={chartRows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(27,51,39,0.09)" />
               <XAxis
                 dataKey="calendarYear"
@@ -214,6 +271,18 @@ export default function FIProjectionTab({ initialAssumptions }: Props) {
                 strokeDasharray="5 3"
                 dot={false}
               />
+              {hasActualForMode && (
+                <Line
+                  type="monotone"
+                  dataKey={actualKey}
+                  name="Actual"
+                  stroke={ACTUAL_COLOR}
+                  strokeWidth={2}
+                  strokeDasharray="2 2"
+                  dot={{ r: 4, fill: ACTUAL_COLOR }}
+                  connectNulls
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
@@ -228,9 +297,9 @@ export default function FIProjectionTab({ initialAssumptions }: Props) {
                     "Saving",
                     "Superannuation",
                     "Spending",
-                    "Asset",
+                    "Liquid Asset",
                     "Inv. Spending Ratio",
-                    "Asset Spending Ratio",
+                    "Liquid Asset Spending Ratio",
                   ].map((h, i) => (
                     <th
                       key={h}

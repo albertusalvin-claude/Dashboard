@@ -1,7 +1,8 @@
 import FIProjectionTab from "../../../components/FIProjectionTab";
 import { getFIAssumptions } from "../../../lib/getFIAssumptions";
+import { getAssetGrowthLog } from "../../../lib/getAssetGrowthLog";
 
 export default async function ProjectionPage() {
-  const assumptions = await getFIAssumptions();
-  return <FIProjectionTab initialAssumptions={assumptions} />;
+  const [assumptions, actualLog] = await Promise.all([getFIAssumptions(), getAssetGrowthLog()]);
+  return <FIProjectionTab initialAssumptions={assumptions} actualLog={actualLog} />;
 }
