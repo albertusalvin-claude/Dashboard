@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { dedupeLatest } from "../lib/dedupeLatest";
 import type { AssetGrowthEntry } from "../lib/getAssetGrowthLog";
 import type { InvestmentLogEntry } from "../lib/getInvestmentLog";
 import type { SavingsLogEntry } from "../lib/getSavingsLog";
@@ -60,20 +61,7 @@ function EditableLogTable({
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  // `entries` is already sorted latest-first, so the first time a key is
-  // seen is its latest logged value.
-  const latestEntries = useMemo(() => {
-    const seen = new Set<string>();
-    const result: LogRow[] = [];
-    for (const entry of entries) {
-      const key = dedupeKey(entry);
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push(entry);
-      }
-    }
-    return result;
-  }, [entries, dedupeKey]);
+  const latestEntries = useMemo(() => dedupeLatest(entries, dedupeKey), [entries, dedupeKey]);
 
   const visibleEntries = showAll ? entries : latestEntries;
   const hiddenCount = entries.length - latestEntries.length;
@@ -316,7 +304,7 @@ export default function AssetLogTab({
             >
               Derived automatically from the logs below, per month. Each investment/saving account/stock option counts
               at its latest known value, so re-logging one doesn't double it. Total Liquid Asset excludes
-              Stock Options, which aren't readily convertible to cash. Edit those, not this.
+              Stock Options (illiquid, no ready market); Total Asset includes them. Edit those, not this.
             </div>
           </div>
         </div>
@@ -329,7 +317,15 @@ export default function AssetLogTab({
             <table className="w-full text-xs min-w-[560px]">
               <thead>
                 <tr className="border-b border-line">
-                  {["Month", "Liquid Investment", "Savings", "Superannuation", "Stock Options", "Total Liquid Asset"].map(
+                  {[
+                    "Month",
+                    "Liquid Investment",
+                    "Savings",
+                    "Superannuation",
+                    "Stock Options",
+                    "Total Liquid Asset",
+                    "Total Asset",
+                  ].map(
                     (h, i) => (
                       <th
                         key={h}
@@ -350,6 +346,7 @@ export default function AssetLogTab({
                     <td className="py-1.5 px-2 text-right font-mono text-ink">{dollars(e.superannuation, 2)}</td>
                     <td className="py-1.5 px-2 text-right font-mono text-ink">{dollars(e.stockOptions, 2)}</td>
                     <td className="py-1.5 px-2 text-right font-mono font-bold text-ink">{dollars(e.liquidAsset, 2)}</td>
+                    <td className="py-1.5 px-2 text-right font-mono font-bold text-ink">{dollars(e.asset, 2)}</td>
                   </tr>
                 ))}
               </tbody>

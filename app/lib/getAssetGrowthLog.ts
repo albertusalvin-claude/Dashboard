@@ -1,7 +1,7 @@
-import { getInvestmentLog } from "./getInvestmentLog";
-import { getSavingsLog } from "./getSavingsLog";
-import { getSuperannuationLog } from "./getSuperannuationLog";
-import { getStockOptionsLog } from "./getStockOptionsLog";
+import { getInvestmentLog, type InvestmentLogEntry } from "./getInvestmentLog";
+import { getSavingsLog, type SavingsLogEntry } from "./getSavingsLog";
+import { getSuperannuationLog, type SuperannuationLogEntry } from "./getSuperannuationLog";
+import { getStockOptionsLog, type StockOptionsLogEntry } from "./getStockOptionsLog";
 
 export type AssetGrowthEntry = {
   month: string; // YYYY-MM — the only identifier; this table has no Notion rows of its own
@@ -13,6 +13,7 @@ export type AssetGrowthEntry = {
   // market), and the FI projection's own "Asset" was never modeling them
   // either, so this keeps the projected-vs-actual comparison apples-to-apples.
   liquidAsset: number; // liquidInvestment + savings + superannuation
+  asset: number; // liquidAsset + stockOptions — everything, illiquid included
 };
 
 // Rolls a granular log up into a per-month total, one holding/account/grant
@@ -53,18 +54,16 @@ export function carryForwardTotals<T extends { date: string; month: string; valu
   return totals;
 }
 
-// Purely derived — every edit happens at the granular level (Investment,
-// Savings, Superannuation, Stock Options logs), each rolled up by month via
-// carryForwardTotals and summed here. There's no Notion database backing
-// this table directly.
-export async function getAssetGrowthLog(): Promise<AssetGrowthEntry[]> {
-  const [investment, savings, superannuation, stockOptions] = await Promise.all([
-    getInvestmentLog(),
-    getSavingsLog(),
-    getSuperannuationLog(),
-    getStockOptionsLog(),
-  ]);
-
+// The pure combine step: rolls the four granular logs up into one row per
+// month via carryForwardTotals. Split out from getAssetGrowthLog() below so
+// it can be tested directly against real fetched data, with no Notion
+// round-trip involved.
+export function computeAssetGrowthLog(
+  investment: InvestmentLogEntry[],
+  savings: SavingsLogEntry[],
+  superannuation: SuperannuationLogEntry[],
+  stockOptions: StockOptionsLogEntry[]
+): AssetGrowthEntry[] {
   const allMonths = [
     ...new Set([
       ...investment.map((e) => e.month),
@@ -84,13 +83,30 @@ export async function getAssetGrowthLog(): Promise<AssetGrowthEntry[]> {
     const s = savingsTotals.get(month) ?? 0;
     const sup = superTotals.get(month) ?? 0;
     const so = optionsTotals.get(month) ?? 0;
+    const liquidAsset = liquidInvestment + s + sup;
     return {
       month,
       liquidInvestment,
       savings: s,
       superannuation: sup,
       stockOptions: so,
-      liquidAsset: liquidInvestment + s + sup,
+      liquidAsset,
+      asset: liquidAsset + so,
     };
   });
+}
+
+// Purely derived — every edit happens at the granular level (Investment,
+// Savings, Superannuation, Stock Options logs); computeAssetGrowthLog()
+// rolls them up by month. There's no Notion database backing this table
+// directly.
+export async function getAssetGrowthLog(): Promise<AssetGrowthEntry[]> {
+  const [investment, savings, superannuation, stockOptions] = await Promise.all([
+    getInvestmentLog(),
+    getSavingsLog(),
+    getSuperannuationLog(),
+    getStockOptionsLog(),
+  ]);
+
+  return computeAssetGrowthLog(investment, savings, superannuation, stockOptions);
 }
