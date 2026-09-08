@@ -101,10 +101,6 @@ export const FI_FIELDS: FIFieldMeta[] = [
   { key: "years", label: "Years", group: "length", notionProperty: "Years" },
 ];
 
-// Year 0 of the projection is this calendar year — a fixed reference point,
-// not a scenario assumption, so it's a constant rather than an editable field.
-export const FI_START_YEAR = 2026;
-
 export type FIYearRow = {
   year: number;
   calendarYear: number;
@@ -117,6 +113,10 @@ export type FIYearRow = {
   investmentSpendingRatio: number;
   assetSpendingRatio: number;
 };
+
+// Year 0 of the projection is this calendar year — a fixed reference point,
+// not a scenario assumption, so it's a constant rather than an editable field.
+export const FI_START_YEAR = 2026;
 
 export function computeFIProjection(a: FIAssumptions): FIYearRow[] {
   const annualSpending = a.mainSpending + a.tertiaryNeeds;
@@ -159,4 +159,80 @@ export function computeFIProjection(a: FIAssumptions): FIYearRow[] {
   }
 
   return rows;
+}
+
+export const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+export type FIMonthRow = {
+  monthIndex: number; // 0-11
+  monthLabel: (typeof MONTH_LABELS)[number];
+  calendarYear: number;
+  income: number;
+  investment: number;
+  saving: number;
+  superannuation: number;
+  spending: number;
+  asset: number;
+  investmentSpendingRatio: number;
+  assetSpendingRatio: number;
+};
+
+// Geometric interpolation: value(t) = start * (end/start)^t. Every quantity
+// here grows via a compounding annual rate, not a flat annual amount, so
+// this traces the same kind of curve the model itself produces — a straight
+// line would visibly kink at each year boundary. Falls back to linear only
+// if either endpoint is zero (a ratio to/from zero is undefined) or if the two values have different signs.
+function interpolate(start: number, end: number, t: number): number {
+  if (start === 0 || end === 0 || (start < 0) !== (end < 0)) {
+    return start + (end - start) * t;
+  }
+  return start * Math.pow(end / start, t);
+}
+
+// Zooms a single calendar year of the annual projection into 12 monthly
+// points (Jan = the year's own start-of-year row, Dec = 11/12 of the way to
+// next year's start-of-year row) — there's no monthly model underneath, this
+// is purely a smoother read of the same annual curve. If `calendarYear` is
+// the last year in `rows`, there's no "next year" row to interpolate toward,
+// so it holds flat at that year's values instead of extrapolating.
+export function interpolateYearMonthly(rows: FIYearRow[], calendarYear: number): FIMonthRow[] {
+  const startRow = rows.find((r) => r.calendarYear === calendarYear);
+  if (!startRow) return [];
+  const endRow = rows.find((r) => r.calendarYear === calendarYear + 1) ?? startRow;
+
+  // Investment/Saving/Superannuation are balances — they compound smoothly
+  // through the year, so they're the only fields actually interpolated.
+  const BALANCE_FIELDS = ["investment", "saving", "superannuation"] as const;
+
+  return MONTH_LABELS.map((monthLabel, monthIndex) => {
+    const t = monthIndex / 12;
+    const balances = Object.fromEntries(
+      BALANCE_FIELDS.map((f) => [f, interpolate(startRow[f], endRow[f], t)])
+    ) as Record<(typeof BALANCE_FIELDS)[number], number>;
+
+    // Asset is always the sum of the three balances (never interpolated on
+    // its own) — otherwise it drifts from that identity for in-between
+    // months, since interpolating a sum isn't the same as summing three
+    // independent interpolations.
+    const asset = balances.investment + balances.saving + balances.superannuation;
+
+    // Income and Spending are annual flow totals, not balances — a salary
+    // doesn't rise gradually every month, and the annual spending figure
+    // only steps up once a year via inflation, so both hold flat at this
+    // year's own value rather than interpolating toward next year's.
+    const income = startRow.income;
+    const spending = startRow.spending;
+
+    return {
+      monthIndex,
+      monthLabel,
+      calendarYear,
+      income,
+      spending,
+      ...balances,
+      asset,
+      investmentSpendingRatio: spending !== 0 ? balances.investment / spending : 0,
+      assetSpendingRatio: spending !== 0 ? asset / spending : 0,
+    };
+  });
 }

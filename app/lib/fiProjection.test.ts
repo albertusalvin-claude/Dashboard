@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeFIProjection, type FIAssumptions } from "./fiProjection";
+import { computeFIProjection, interpolateYearMonthly, MONTH_LABELS, type FIAssumptions } from "./fiProjection";
 
 // Regression test: pins the model to a verified real-world snapshot (the
 // dashboard's own "Money Projection Assumptions" table, screenshotted and
@@ -78,5 +78,129 @@ describe("computeFIProjection", () => {
       ASSUMPTIONS.startingInvestment + ASSUMPTIONS.startingSaving + ASSUMPTIONS.startingSuperannuation,
       6
     );
+  });
+});
+
+describe("interpolateYearMonthly", () => {
+  const rows = computeFIProjection(ASSUMPTIONS);
+
+  it("returns 12 months, Jan through Dec, for a year with a following year", () => {
+    const months = interpolateYearMonthly(rows, 2026);
+    expect(months).toHaveLength(12);
+    expect(months.map((m) => m.monthLabel)).toEqual([...MONTH_LABELS]);
+    expect(months.map((m) => m.monthIndex)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(months.every((m) => m.calendarYear === 2026)).toBe(true);
+  });
+
+  it("Jan matches the year's own row exactly — interpolation starts at t=0", () => {
+    const jan2027 = interpolateYearMonthly(rows, 2027)[0];
+    const year2027 = rows.find((r) => r.calendarYear === 2027)!;
+    expect(jan2027.investment).toBeCloseTo(year2027.investment, 6);
+    expect(jan2027.saving).toBeCloseTo(year2027.saving, 6);
+    expect(jan2027.superannuation).toBeCloseTo(year2027.superannuation, 6);
+    expect(jan2027.income).toBeCloseTo(year2027.income, 6);
+    expect(jan2027.spending).toBeCloseTo(year2027.spending, 6);
+    expect(jan2027.asset).toBeCloseTo(year2027.asset, 6);
+  });
+
+  it("mid-year is the geometric mean of this year's and next year's values", () => {
+    const year2026 = rows.find((r) => r.calendarYear === 2026)!;
+    const year2027 = rows.find((r) => r.calendarYear === 2027)!;
+    const july = interpolateYearMonthly(rows, 2026)[6]; // t = 6/12 = 0.5
+    expect(july.investment).toBeCloseTo(Math.sqrt(year2026.investment * year2027.investment), 6);
+    expect(july.superannuation).toBeCloseTo(Math.sqrt(year2026.superannuation * year2027.superannuation), 6);
+  });
+
+  it("holds flat across all 12 months for the last projected year (no following year to interpolate toward)", () => {
+    const lastYear = rows[rows.length - 1];
+    const months = interpolateYearMonthly(rows, lastYear.calendarYear);
+    for (const m of months) {
+      expect(m.investment).toBeCloseTo(lastYear.investment, 6);
+      expect(m.asset).toBeCloseTo(lastYear.asset, 6);
+    }
+  });
+
+  it("recomputes the ratio fields from investment/asset and spending, not by interpolating the ratio itself", () => {
+    const months = interpolateYearMonthly(rows, 2026);
+    for (const m of months) {
+      expect(m.investmentSpendingRatio).toBeCloseTo(m.investment / m.spending, 6);
+      expect(m.assetSpendingRatio).toBeCloseTo(m.asset / m.spending, 6);
+    }
+  });
+
+  it("holds Income and Spending flat at this year's value — they're annual flow totals, not balances, so they don't creep toward next year's figure", () => {
+    const year2026 = rows.find((r) => r.calendarYear === 2026)!;
+    const months = interpolateYearMonthly(rows, 2026);
+    for (const m of months) {
+      expect(m.income).toBe(year2026.income);
+      expect(m.spending).toBe(year2026.spending);
+    }
+  });
+
+  it("Asset always equals the sum of the three balances, even mid-year — it's never interpolated on its own (that would drift from the identity, since interpolating a sum isn't the same as summing three independent interpolations)", () => {
+    const months = interpolateYearMonthly(rows, 2026);
+    for (const m of months) {
+      expect(m.asset).toBeCloseTo(m.investment + m.saving + m.superannuation, 9);
+    }
+  });
+
+  it("returns an empty array for a calendar year outside the projection", () => {
+    expect(interpolateYearMonthly(rows, 1999)).toEqual([]);
+  });
+});
+
+// Ground truth: the app's own rendered Monthly Projection table for 2026,
+// screenshotted twice (before/after an unrelated UI tweak) with identical
+// numbers both times — confirms these are what the app actually produced,
+// not a one-off. Investment/Saving/Superannuation are pinned verbatim from
+// the screenshots; Liquid Asset's expected value is their sum computed once
+// here (not re-transcribed from the screenshot's — buggy, at the time —
+// independently-interpolated Liquid Asset column), then asserted against
+// `m.asset` as its own explicit value, plus separately against the
+// identity, so a regression in either the number or the definition fails.
+describe("interpolateYearMonthly — pinned to a real rendered snapshot (2026)", () => {
+  const rows = computeFIProjection(ASSUMPTIONS);
+  const months = interpolateYearMonthly(rows, 2026);
+
+  // [monthLabel, investment, saving, superannuation]
+  const SNAPSHOT: [string, number, number, number][] = [
+    ["Jan", 45000.0, 30000.0, 25000.0],
+    ["Feb", 46659.87, 30473.35, 25836.05],
+    ["Mar", 48380.97, 30954.17, 26700.07],
+    ["Apr", 50165.55, 31442.57, 27592.97],
+    ["May", 52015.96, 31938.68, 28515.74],
+    ["Jun", 53934.62, 32442.62, 29469.37],
+    ["Jul", 55924.06, 32954.51, 30454.88],
+    ["Aug", 57986.87, 33474.48, 31473.36],
+    ["Sep", 60125.78, 34002.65, 32525.9],
+    ["Oct", 62343.58, 34539.16, 33613.63],
+    ["Nov", 64643.19, 35084.13, 34737.74],
+    ["Dec", 67027.62, 35637.7, 35899.45],
+  ];
+
+  // [monthLabel, expected Liquid Asset] — investment + saving + superannuation
+  // for the row above, computed once and pinned as its own number.
+  const LIQUID_ASSET: [string, number][] = SNAPSHOT.map(([monthLabel, investment, saving, superannuation]) => [
+    monthLabel,
+    investment + saving + superannuation,
+  ]);
+
+  it.each(SNAPSHOT)("matches the rendered snapshot for %s", (monthLabel, investment, saving, superannuation) => {
+    const m = months.find((r) => r.monthLabel === monthLabel)!;
+    expect(m.investment).toBeCloseTo(investment, 1);
+    expect(m.saving).toBeCloseTo(saving, 1);
+    expect(m.superannuation).toBeCloseTo(superannuation, 1);
+  });
+
+  it.each(LIQUID_ASSET)("Liquid Asset for %s matches Investment + Saving + Superannuation", (monthLabel, expected) => {
+    const m = months.find((r) => r.monthLabel === monthLabel)!;
+    expect(m.asset).toBeCloseTo(expected, 1);
+  });
+
+  it("Income and Spending are static all year — $80,000 and $55,000, this year's own values", () => {
+    for (const m of months) {
+      expect(m.income).toBe(80000);
+      expect(m.spending).toBe(55000);
+    }
   });
 });

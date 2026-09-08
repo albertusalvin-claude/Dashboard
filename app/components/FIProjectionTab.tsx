@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import {
   computeFIProjection,
+  interpolateYearMonthly,
   FI_FIELDS,
   type FIAssumptions,
   type FIFieldGroup,
@@ -131,6 +132,11 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
   const [applied, setApplied] = useState<FIAssumptions>(initialAssumptions);
   const [view, setView] = useState<"table" | "chart">("chart");
   const [chartMode, setChartMode] = useState<AssetViewKey>("total");
+  const [scope, setScope] = useState<"full" | "year">("full");
+  // Which year the Monthly Projection zoom looks at — defaults to the real
+  // current year, but is an editable field below rather than being locked
+  // to "today" forever.
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [isRebuilding, startRebuild] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -163,8 +169,37 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
       };
     });
   }, [rows, actualLog]);
+  // Zoomed-in view: `selectedYear`'s annual row interpolated into 12 months
+  // (see interpolateYearMonthly — there's no monthly model, this is a
+  // smoother read of the same annual curve). The actual overlay here plots
+  // every month logged that year, not just the earliest, since we finally
+  // have the resolution to show more than one point.
+  const minYear = rows[0]?.calendarYear ?? selectedYear;
+  const maxYear = rows[rows.length - 1]?.calendarYear ?? selectedYear;
+  const monthRows = useMemo(() => interpolateYearMonthly(rows, selectedYear), [rows, selectedYear]);
+  const monthChartRows = useMemo(() => {
+    const byMonth = new Map<string, AssetGrowthEntry>();
+    for (const entry of actualLog) {
+      if (entry.month.startsWith(`${selectedYear}-`)) byMonth.set(entry.month, entry);
+    }
+    return monthRows.map((m) => {
+      const actual = byMonth.get(`${selectedYear}-${String(m.monthIndex + 1).padStart(2, "0")}`);
+      return {
+        ...m,
+        actualAsset: actual?.liquidAsset,
+        actualInvestment: actual?.liquidInvestment,
+        actualSaving: actual?.savings,
+        actualSuperannuation: actual?.superannuation,
+      };
+    });
+  }, [monthRows, actualLog, selectedYear]);
+
+  // Recharts infers its `data` generic from a single concrete shape; year vs
+  // month rows are structurally different (calendarYear+year vs monthLabel+
+  // monthIndex), so widen to a loose record type rather than fighting it.
+  const activeChartData: Record<string, unknown>[] = scope === "year" ? monthChartRows : chartRows;
   const actualKey = ACTUAL_KEY[chartMode];
-  const hasActualForMode = chartRows.some((r) => r[actualKey] != null);
+  const hasActualForMode = activeChartData.some((r) => r[actualKey] != null);
 
   const setField = (key: keyof FIAssumptions, value: number) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -213,6 +248,67 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setScope("full")}
+            className={`font-mono text-xs px-3 py-1.5 rounded-full border transition-colors
+              ${scope === "full" ? "bg-ink text-paper border-ink" : "text-ink-soft border-line hover:border-ink-soft hover:text-ink"}`}
+          >
+            Full projection
+          </button>
+          <div className="flex items-center gap-1">
+            <div className="relative group">
+              <button
+                onClick={() => setScope("year")}
+                className={`font-mono text-xs px-3 py-1.5 rounded-full border transition-colors
+                  ${scope === "year" ? "bg-ink text-paper border-ink" : "text-ink-soft border-line hover:border-ink-soft hover:text-ink"}`}
+              >
+                Monthly Projection
+              </button>
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-96 space-y-2 rounded-lg border border-line bg-card px-3 py-2.5 text-xs text-ink-soft leading-relaxed opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+              >
+                <p>
+                  There's no monthly model underneath — this zooms the year's own annual figures into 12
+                  points.
+                </p>
+                <p>
+                  <strong className="text-ink">Investment, Saving, Superannuation</strong> — geometric
+                  interpolation between this year's (start) and next year's (end) values, since they're
+                  balances that compound smoothly through the year:
+                </p>
+                <p className="font-mono text-ink bg-paper rounded px-2 py-1 text-center">
+                  value(month) = start × (end ÷ start)^(month ÷ 12)
+                </p>
+                <p>
+                  <strong className="text-ink">Liquid Asset</strong> — always their sum for that month,
+                  never interpolated on its own.
+                </p>
+                <p>
+                  <strong className="text-ink">Income, Spending</strong> — held flat at this year's own
+                  value all 12 months, since these typically aren't updated that frequently in real life (a
+                  salary or budget usually changes once a year, not gradually).
+                </p>
+                <p>Both ratio columns are recomputed from these values month by month.</p>
+              </div>
+            </div>
+            <input
+              type="number"
+              value={selectedYear}
+              min={minYear}
+              max={maxYear}
+              onChange={(e) => {
+                const n = e.target.valueAsNumber;
+                if (Number.isNaN(n)) return;
+                setSelectedYear(Math.min(maxYear, Math.max(minYear, Math.round(n))));
+                setScope("year");
+              }}
+              className="w-20 rounded-full border border-line bg-paper px-2 py-1.5 text-center font-mono text-xs text-ink focus:outline-none focus:border-ink-soft"
+            />
+          </div>
+        </div>
+
         {view === "chart" && (
           <div className="flex flex-wrap gap-2">
             {ASSET_VIEWS.map(({ key, label }) => (
@@ -230,10 +326,10 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
 
         {view === "chart" ? (
           <ResponsiveContainer width="100%" height={420}>
-            <ComposedChart data={chartRows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <ComposedChart data={activeChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(27,51,39,0.09)" />
               <XAxis
-                dataKey="calendarYear"
+                dataKey={scope === "year" ? "monthLabel" : "calendarYear"}
                 tick={{ fontSize: 11, fill: "#42574a" }}
               />
               <YAxis tick={{ fontSize: 11, fill: "#42574a" }} tickFormatter={compactDollars} width={56} />
@@ -284,7 +380,7 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
               <thead>
                 <tr className="border-b border-line">
                   {[
-                    "Year",
+                    scope === "year" ? "Month" : "Year",
                     "Income",
                     "Investment",
                     "Saving",
@@ -304,9 +400,12 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.year} className="border-b border-line last:border-0">
-                    <td className="py-1.5 px-2 font-mono text-ink">{r.calendarYear}</td>
+                {(scope === "year" ? monthRows : rows).map((r) => (
+                  <tr
+                    key={"year" in r ? r.year : `${r.calendarYear}-${r.monthIndex}`}
+                    className="border-b border-line last:border-0"
+                  >
+                    <td className="py-1.5 px-2 font-mono text-ink">{"year" in r ? r.calendarYear : r.monthLabel}</td>
                     <td className="py-1.5 px-2 text-right font-mono text-ink">{dollars(r.income, 2)}</td>
                     <td className="py-1.5 px-2 text-right font-mono text-ink">{dollars(r.investment, 2)}</td>
                     <td className="py-1.5 px-2 text-right font-mono text-ink">{dollars(r.saving, 2)}</td>
