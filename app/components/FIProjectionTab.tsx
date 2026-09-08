@@ -180,13 +180,6 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
 
   return (
     <div className="space-y-6">
-      {/* Assumptions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {GROUP_ORDER.map((group) => (
-          <FieldGroup key={group} group={group} values={draft} onChange={setField} />
-        ))}
-      </div>
-
       {/* Result */}
       <div className="bg-card rounded-2xl border border-line p-5 space-y-4">
         <div className="flex items-center justify-between">
@@ -330,6 +323,13 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
             </table>
           </div>
         )}
+      </div>
+
+      {/* Assumptions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {GROUP_ORDER.map((group) => (
+          <FieldGroup key={group} group={group} values={draft} onChange={setField} />
+        ))}
       </div>
 
       {/* Settings */}
