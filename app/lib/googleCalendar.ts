@@ -1,8 +1,22 @@
+export type CalendarEventSummary = {
+  id: string;
+  name: string;
+  date: string;
+  link: string;
+};
+
 type CalendarEventInput = {
   summary: string;
   description?: string;
   /** ISO date (YYYY-MM-DD). Without it there's no slot to put the event on, so callers should skip. */
   date: string;
+};
+
+type GoogleCalendarEventItem = {
+  id: string;
+  summary?: string;
+  htmlLink?: string;
+  start?: { date?: string; dateTime?: string };
 };
 
 function nextDay(dateStr: string): string {
@@ -54,4 +68,35 @@ export async function createCalendarEvent({ summary, description, date }: Calend
       end: { date: nextDay(date) },
     }),
   });
+}
+
+export async function listUpcomingEvents(): Promise<CalendarEventSummary[]> {
+  const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
+
+  const accessToken = await getAccessToken();
+  if (!accessToken) return [];
+
+  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+  url.searchParams.set("timeMin", new Date().toISOString());
+  url.searchParams.set("singleEvents", "true");
+  url.searchParams.set("orderBy", "startTime");
+  url.searchParams.set("maxResults", "50");
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+
+  if (!res.ok) return [];
+
+  const data = (await res.json()) as { items?: GoogleCalendarEventItem[] };
+
+  return (data.items ?? [])
+    .map((item) => ({
+      id: item.id,
+      name: item.summary ?? "",
+      date: item.start?.date ?? item.start?.dateTime?.slice(0, 10) ?? "",
+      link: item.htmlLink ?? "",
+    }))
+    .filter((e) => e.name && e.date);
 }

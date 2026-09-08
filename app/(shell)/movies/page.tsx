@@ -1,7 +1,7 @@
 import MovieBacklog from "../../components/MovieBacklog";
-import { getEvents } from "../../lib/getEvents";
+import { getMovieBacklog } from "../../lib/getMovieBacklog";
 
 export default async function MoviesPage() {
-  const movies = await getEvents("Movie", "New");
+  const movies = await getMovieBacklog();
   return <MovieBacklog movies={movies} />;
 }

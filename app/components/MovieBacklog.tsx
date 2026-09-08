@@ -1,8 +1,8 @@
 "use client";
 
 import { useOptimistic, useTransition } from "react";
-import { updateEventStatus } from "../actions/events";
-import type { EventEntry } from "../lib/getEvents";
+import { acceptCandidate } from "../actions/events";
+import type { MovieCandidate } from "../lib/getMovieBacklog";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -15,24 +15,17 @@ function fmt(dateStr: string | null) {
 function EmptySetup() {
   return (
     <div className="bg-card border border-line rounded-2xl p-8 text-center">
-      <p className="text-ink font-semibold mb-1">Movie backlog not connected yet.</p>
-      <p className="text-ink-soft text-sm mb-3">
-        Add <code className="font-mono bg-paper px-1.5 py-0.5 rounded text-xs border border-line">NOTION_EVENTS_ID</code> to your <code className="font-mono bg-paper px-1.5 py-0.5 rounded text-xs border border-line">.env.local</code>, or you&apos;re just all caught up.
+      <p className="text-ink font-semibold mb-1">No movie source wired up yet.</p>
+      <p className="text-ink-soft text-sm">
+        Untriaged movies will show up here once{" "}
+        <code className="font-mono bg-paper px-1.5 py-0.5 rounded text-xs border border-line">getMovieBacklog()</code>{" "}
+        has somewhere to fetch them from.
       </p>
-      <div className="text-left inline-block bg-paper border border-line rounded-xl p-4 text-xs font-mono text-ink-soft mt-1">
-        <p className="font-bold text-ink mb-2">Notion database schema (&quot;Events&quot;):</p>
-        <p>Name  → Title</p>
-        <p>Type  → Select (Movie / Football / Fight / Badminton)</p>
-        <p>Status → Select (New / Accepted / Rejected)</p>
-        <p>Date  → Date (optional)</p>
-        <p>Notes → Text (optional)</p>
-        <p>Link  → URL (optional)</p>
-      </div>
     </div>
   );
 }
 
-type Props = { movies: EventEntry[] };
+type Props = { movies: MovieCandidate[] };
 
 export default function MovieBacklog({ movies }: Props) {
   const [optimisticMovies, removeOptimistic] = useOptimistic(
@@ -42,10 +35,16 @@ export default function MovieBacklog({ movies }: Props) {
 
   const [, startTransition] = useTransition();
 
-  function handleAction(movie: EventEntry, status: "Accepted" | "Rejected") {
+  function handleAccept(movie: MovieCandidate) {
     startTransition(async () => {
       removeOptimistic(movie.id);
-      await updateEventStatus(movie.id, status, { name: movie.name, date: movie.date, link: movie.link });
+      await acceptCandidate({ name: movie.name, date: movie.date, link: movie.link });
+    });
+  }
+
+  function handleSkip(movie: MovieCandidate) {
+    startTransition(() => {
+      removeOptimistic(movie.id);
     });
   }
 
@@ -83,14 +82,16 @@ export default function MovieBacklog({ movies }: Props) {
 
           <div className="flex gap-2 shrink-0">
             <button
-              onClick={() => handleAction(movie, "Accepted")}
-              className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors cursor-pointer"
+              onClick={() => handleAccept(movie)}
+              disabled={!movie.date}
+              title={movie.date ? undefined : "No date set — can't place this on the calendar"}
+              className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: "rgba(78,112,67,0.16)", color: "#4E7043" }}
             >
               Accept
             </button>
             <button
-              onClick={() => handleAction(movie, "Rejected")}
+              onClick={() => handleSkip(movie)}
               className="text-xs px-3 py-1.5 rounded-full font-medium text-ink-soft border border-line hover:border-ink-soft hover:text-ink transition-colors cursor-pointer"
             >
               Skip
