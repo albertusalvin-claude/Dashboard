@@ -49,7 +49,7 @@ export async function GET() {
         date: (props.Date?.date?.start ?? "").slice(0, 10),
         notes: props.Notes?.rich_text?.[0]?.plain_text ?? "",
         paymentMethod: props["Payment Method"]?.select?.name ?? "",
-        store: props.Store?.select?.name ?? "",
+        store: props.Store?.rich_text?.[0]?.plain_text ?? "",
       };
     })
     .filter((e: SpendingEntry) => e.date);
