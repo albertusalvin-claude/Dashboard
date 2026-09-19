@@ -1,21 +1,40 @@
 "use client";
 
+import { useState } from "react";
+import SpendingEntryForm from "./SpendingEntryForm";
 import SpendingTimeline from "./SpendingTimeline";
 import ShoppingList from "./ShoppingList";
 import SpendingBreakdown from "./SpendingBreakdown";
 import type { SpendingEntry } from "../api/spending/route";
 import type { ShoppingItem } from "../lib/getShoppingList";
+import type { SpendingOptions } from "../lib/getSpendingOptions";
+import type { ShoppingOptions } from "../lib/getShoppingOptions";
 
 type Props = {
   entries: SpendingEntry[];
+  options: SpendingOptions;
+  shoppingOptions: ShoppingOptions;
   shoppingItems: ShoppingItem[];
   monthSpend: number;
   totalSpend: number;
   topCategory: string;
 };
 
-export default function SpendingTab({ entries, shoppingItems, monthSpend, totalSpend, topCategory }: Props) {
+export default function SpendingTab({
+  entries,
+  options,
+  shoppingItems,
+  shoppingOptions,
+  monthSpend,
+  totalSpend,
+  topCategory,
+}: Props) {
   const oneOff = entries.filter((e) => e.category !== "Groceries");
+  const [adding, setAdding] = useState(false);
+
+  // Suggestions for the free-text Store field, drawn from every entry rather
+  // than just the one-off ones shown in the timeline.
+  const storeSuggestions = [...new Set(entries.map((e) => e.store).filter(Boolean))].sort();
 
   const stats = [
     { label: "This Month", value: `$${monthSpend.toFixed(2)}`, color: "#CB3A1E" },
@@ -37,7 +56,24 @@ export default function SpendingTab({ entries, shoppingItems, monthSpend, totalS
 
       {/* One-off Spending */}
       <div className="bg-card rounded-2xl border border-line p-5 space-y-4">
-        <h3 className="font-display font-bold text-lg text-ink">One-off Spending</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-display font-bold text-lg text-ink">One-off Spending</h3>
+          <button
+            onClick={() => setAdding((open) => !open)}
+            className="font-mono text-xs px-3 py-1.5 rounded-full border border-line text-ink-soft hover:border-ink-soft hover:text-ink transition-colors cursor-pointer"
+          >
+            + Add entry
+          </button>
+        </div>
+
+        {adding && (
+          <SpendingEntryForm
+            options={options}
+            storeSuggestions={storeSuggestions}
+            onClose={() => setAdding(false)}
+          />
+        )}
+
         <SpendingBreakdown
           entries={oneOff}
           title="One-off Spending"
@@ -51,12 +87,12 @@ export default function SpendingTab({ entries, shoppingItems, monthSpend, totalS
             <span className="font-mono text-xs text-ink-soft hidden group-open:inline">Hide ▴</span>
           </summary>
           <div className="mt-3">
-            <SpendingTimeline entries={oneOff} />
+            <SpendingTimeline entries={oneOff} options={options} storeSuggestions={storeSuggestions} />
           </div>
         </details>
       </div>
 
-      <ShoppingList items={shoppingItems} />
+      <ShoppingList items={shoppingItems} options={shoppingOptions} />
     </div>
   );
 }

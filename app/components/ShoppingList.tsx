@@ -1,9 +1,11 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
+import ShoppingItemForm from "./ShoppingItemForm";
 import { updateShoppingStatus } from "../actions/shopping";
 import { useIsDummyRoute } from "../lib/useIsDummyRoute";
 import type { ShoppingItem } from "../lib/getShoppingList";
+import type { ShoppingOptions } from "../lib/getShoppingOptions";
 
 const PRIORITY_COLORS: Record<string, string> = {
   High: "bg-red-100 text-red-700",
@@ -16,7 +18,9 @@ const STATUS_COLORS: Record<string, string> = {
   "Ready to Buy": "bg-green-100 text-green-700",
 };
 
-export default function ShoppingList({ items }: { items: ShoppingItem[] }) {
+export default function ShoppingList({ items, options }: { items: ShoppingItem[]; options: ShoppingOptions }) {
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const remaining = items.filter(
     (i) => i.status === "Watching" || i.status === "Ready to Buy"
   );
@@ -39,12 +43,29 @@ export default function ShoppingList({ items }: { items: ShoppingItem[] }) {
 
   return (
     <div className="bg-white rounded-2xl shadow p-4 flex flex-col h-full">
-      <h2 className="text-base font-semibold text-gray-700 mb-4">
-        Shopping List{" "}
-        <span className="text-xs font-normal text-gray-400">
-          ({optimisticItems.length} remaining)
-        </span>
-      </h2>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h2 className="text-base font-semibold text-gray-700">
+          Shopping List{" "}
+          <span className="text-xs font-normal text-gray-400">
+            ({optimisticItems.length} remaining)
+          </span>
+        </h2>
+        <button
+          onClick={() => {
+            setAdding((open) => !open);
+            setEditingId(null);
+          }}
+          className="text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-400 transition-colors cursor-pointer shrink-0"
+        >
+          + Add item
+        </button>
+      </div>
+
+      {adding && (
+        <div className="mb-3">
+          <ShoppingItemForm options={options} onClose={() => setAdding(false)} />
+        </div>
+      )}
 
       {optimisticItems.length === 0 ? (
         <p className="text-sm text-gray-400 my-auto text-center py-8">
@@ -52,7 +73,12 @@ export default function ShoppingList({ items }: { items: ShoppingItem[] }) {
         </p>
       ) : (
         <ul className="space-y-2 overflow-y-auto flex-1">
-          {optimisticItems.map((item) => (
+          {optimisticItems.map((item) =>
+            item.id === editingId ? (
+              <li key={item.id}>
+                <ShoppingItemForm item={item} options={options} onClose={() => setEditingId(null)} />
+              </li>
+            ) : (
             <li
               key={item.id}
               className="flex items-start gap-2 p-2 rounded-xl hover:bg-gray-50 group"
@@ -106,6 +132,16 @@ export default function ShoppingList({ items }: { items: ShoppingItem[] }) {
 
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 <button
+                  onClick={() => {
+                    setEditingId(item.id);
+                    setAdding(false);
+                  }}
+                  title="Edit this item"
+                  className="text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
                   onClick={() => handleAction(item.id, "Purchased")}
                   title="Mark as Purchased"
                   className="text-xs px-2 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
@@ -121,7 +157,8 @@ export default function ShoppingList({ items }: { items: ShoppingItem[] }) {
                 </button>
               </div>
             </li>
-          ))}
+            )
+          )}
         </ul>
       )}
     </div>

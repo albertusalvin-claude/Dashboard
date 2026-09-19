@@ -1,6 +1,11 @@
 import { connection } from "next/server";
 import SpendingTab from "../../../../components/SpendingTab";
-import { dummyShoppingList, dummySpending } from "../../../../lib/dummyData";
+import {
+  dummyShoppingList,
+  dummyShoppingOptions,
+  dummySpending,
+  dummySpendingOptions,
+} from "../../../../lib/dummyData";
 
 export default async function DummySpendingPage() {
   await connection();
@@ -23,7 +28,9 @@ export default async function DummySpendingPage() {
   return (
     <SpendingTab
       entries={entries}
+      options={dummySpendingOptions()}
       shoppingItems={dummyShoppingList()}
+      shoppingOptions={dummyShoppingOptions()}
       monthSpend={monthSpend}
       totalSpend={totalSpend}
       topCategory={topCategory}

@@ -1,9 +1,16 @@
 import SpendingTab from "../../../components/SpendingTab";
 import { getSpending } from "../../../lib/getSpending";
 import { getShoppingList } from "../../../lib/getShoppingList";
+import { getSpendingOptions } from "../../../lib/getSpendingOptions";
+import { getShoppingOptions } from "../../../lib/getShoppingOptions";
 
 export default async function SpendingPage() {
-  const [entries, shoppingItems] = await Promise.all([getSpending(), getShoppingList()]);
+  const [entries, shoppingItems, options, shoppingOptions] = await Promise.all([
+    getSpending(),
+    getShoppingList(),
+    getSpendingOptions(),
+    getShoppingOptions(),
+  ]);
 
   // Compute date-sensitive stats on the server so client hydration always matches.
   const thisMonth = new Date().toISOString().slice(0, 7);
@@ -21,7 +28,9 @@ export default async function SpendingPage() {
   return (
     <SpendingTab
       entries={entries}
+      options={options}
       shoppingItems={shoppingItems}
+      shoppingOptions={shoppingOptions}
       monthSpend={monthSpend}
       totalSpend={totalSpend}
       topCategory={topCategory}

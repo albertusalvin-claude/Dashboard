@@ -5,6 +5,8 @@ import type { SuperannuationLogEntry } from "./getSuperannuationLog";
 import type { StockOptionsLogEntry } from "./getStockOptionsLog";
 import type { SpendingEntry } from "../api/spending/route";
 import type { ShoppingItem } from "./getShoppingList";
+import type { SpendingOptions } from "./getSpendingOptions";
+import type { ShoppingOptions } from "./getShoppingOptions";
 import type { WeightEntry } from "./getWeightLog";
 import type { BPEntry } from "./getBPLog";
 import type { FieldOptions, Person } from "./getRelationships";
@@ -205,6 +207,15 @@ export function dummySpending(): SpendingEntry[] {
   ];
 }
 
+export function dummySpendingOptions(): SpendingOptions {
+  const entries = dummySpending();
+  const unique = (values: string[]) => [...new Set(values.filter(Boolean))].sort();
+  return {
+    categories: unique(entries.map((e) => e.category)),
+    paymentMethods: unique(entries.map((e) => e.paymentMethod)),
+  };
+}
+
 export function dummyShoppingList(): ShoppingItem[] {
   return [
     { id: "d-shop-1", item: "Standing desk", category: "Home", estPrice: 450, link: "", notes: "Wait for a sale", priority: "Medium", status: "Researching" },
@@ -215,6 +226,14 @@ export function dummyShoppingList(): ShoppingItem[] {
 
 // The weight tab carries a hard-coded goal band, so these sit inside it —
 // a gentle gain on target pace, rather than numbers that read as wildly off.
+export function dummyShoppingOptions(): ShoppingOptions {
+  return {
+    categories: ["Home", "Tech / Setup", "Clothing", "Other"],
+    priorities: ["High", "Medium", "Low"],
+    statuses: ["Watching", "Ready to Buy", "Purchased", "Skipped"],
+  };
+}
+
 export function dummyWeightLog(): WeightEntry[] {
   return Array.from({ length: 8 }, (_, i) => ({
     id: `d-w-${i}`,
