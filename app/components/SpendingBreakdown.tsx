@@ -66,7 +66,7 @@ export default function SpendingBreakdown({ entries, title, pieKey, pieLabel }: 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <p className="text-xs font-mono text-ink-soft uppercase tracking-wide mb-3">By {pieLabel}</p>
-          <ResponsiveContainer width="100%" height={210}>
+          <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
                 data={pieData}
@@ -74,7 +74,9 @@ export default function SpendingBreakdown({ entries, title, pieKey, pieLabel }: 
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius={82}
+                // Labels sit outside the arc, so the radius has to leave room
+                // for them inside the container — at 82 the top one clipped.
+                outerRadius={76}
                 label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                 labelLine={false}
               >
@@ -89,7 +91,7 @@ export default function SpendingBreakdown({ entries, title, pieKey, pieLabel }: 
 
         <div>
           <p className="text-xs font-mono text-ink-soft uppercase tracking-wide mb-3">By month</p>
-          <ResponsiveContainer width="100%" height={210}>
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={barData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(27,51,39,0.09)" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#42574a" }} />
