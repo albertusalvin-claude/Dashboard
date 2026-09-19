@@ -11,15 +11,17 @@ const TABS = [
 
 export default function TopTabNav() {
   const pathname = usePathname();
+  // Under /dummy the same tabs navigate the stand-in copy of the dashboard.
+  const base = pathname.startsWith("/dummy") ? "/dummy" : "";
 
   return (
     <div className="flex gap-1 border-b border-line mb-8">
       {TABS.map(({ href, label }) => {
-        const active = pathname.startsWith(href);
+        const active = pathname.startsWith(`${base}${href}`);
         return (
           <Link
             key={href}
-            href={href}
+            href={`${base}${href}`}
             className={`font-display font-bold text-lg px-5 py-2.5 border-b-[3px] mb-[-1px] capitalize transition-colors
               ${active ? "text-ink border-chili" : "text-ink-soft border-transparent hover:text-ink"}`}
           >
