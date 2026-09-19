@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
 import { dedupeLatest } from "../lib/dedupeLatest";
 import type { AssetGrowthEntry } from "../lib/getAssetGrowthLog";
 import type { InvestmentLogEntry } from "../lib/getInvestmentLog";
@@ -57,6 +58,7 @@ function EditableLogTable({
   onUpdate: (draft: Record<string, string | number> & { id: string }) => Promise<ActionResult>;
 }) {
   const router = useRouter();
+  const isDummy = useIsDummyRoute();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -78,6 +80,10 @@ function EditableLogTable({
 
   function run(action: () => Promise<ActionResult>, onSuccess: () => void) {
     setError(null);
+    if (isDummy) {
+      setError(DUMMY_WRITE_MESSAGE);
+      return;
+    }
     startTransition(async () => {
       const result = await action();
       if (result.ok) {

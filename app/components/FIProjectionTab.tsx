@@ -20,6 +20,7 @@ import {
   type FIFieldGroup,
 } from "../lib/fiProjection";
 import { saveFIAssumptions } from "../actions/fiAssumptions";
+import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
 import type { AssetGrowthEntry } from "../lib/getAssetGrowthLog";
 
 // Same fixed categorical order already used across the app's charts
@@ -138,6 +139,7 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
   // to "today" forever.
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [isRebuilding, startRebuild] = useTransition();
+  const isDummy = useIsDummyRoute();
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const rows = useMemo(() => computeFIProjection(applied), [applied]);
@@ -206,7 +208,12 @@ export default function FIProjectionTab({ initialAssumptions, actualLog }: Props
 
   function handleRebuild() {
     setSaveError(null);
+    // The projection still recomputes from the draft — only the write is held.
     setApplied(draft);
+    if (isDummy) {
+      setSaveError(DUMMY_WRITE_MESSAGE);
+      return;
+    }
     startRebuild(async () => {
       const result = await saveFIAssumptions(draft);
       if (!result.ok) setSaveError(result.error);

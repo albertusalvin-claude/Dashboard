@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { addPerson, updatePerson, type PersonDraft } from "../actions/relationships";
 import type { FieldOptions, OptionField, Person } from "../lib/getRelationships";
 import { PLACE_SUGGESTIONS, STATE_SUGGESTIONS, citiesInState, lookupCity, resolvePlace } from "../lib/places";
+import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
 
 const inputCls =
   "w-full rounded-lg border border-line bg-paper px-2 py-1 font-mono text-sm text-ink focus:outline-none focus:border-ink-soft";
@@ -187,6 +188,7 @@ export default function PersonForm({ options, person, onClose }: Props) {
   const [draft, setDraft] = useState<PersonDraft>(person ? draftFrom(person) : emptyDraft());
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const isDummy = useIsDummyRoute();
 
   const set = <K extends keyof PersonDraft>(key: K, value: PersonDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -195,6 +197,10 @@ export default function PersonForm({ options, person, onClose }: Props) {
 
   function save() {
     setError(null);
+    if (isDummy) {
+      setError(DUMMY_WRITE_MESSAGE);
+      return;
+    }
     startTransition(async () => {
       const result = person ? await updatePerson(person.id, draft) : await addPerson(draft);
       if (result.ok) {

@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from "react";
 import { updateShoppingStatus } from "../actions/shopping";
+import { useIsDummyRoute } from "../lib/useIsDummyRoute";
 import type { ShoppingItem } from "../lib/getShoppingList";
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -26,10 +27,12 @@ export default function ShoppingList({ items }: { items: ShoppingItem[] }) {
   );
 
   const [, startTransition] = useTransition();
+  const isDummy = useIsDummyRoute();
 
   function handleAction(id: string, status: "Purchased" | "Skipped") {
     startTransition(async () => {
       removeOptimistic(id);
+      if (isDummy) return;
       await updateShoppingStatus(id, status);
     });
   }
