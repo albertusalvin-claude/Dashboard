@@ -39,18 +39,20 @@ describe("diet menu text tables", () => {
 });
 
 describe("diet menu totals", () => {
-  it("adds the smoothie up to the figures the tab used to hard-code", () => {
-    const totals = smoothieTotals(dummySmoothies()[0].ingredients);
-    expect(totals.kcal).toBe(485);
-    expect(totals.cost).toBeCloseTo(5.05);
-    expect(totals.protein).toBe(17.3);
+  it("adds a smoothie up from its ingredient lines", () => {
+    const totals = smoothieTotals(
+      parseSmoothieIngredients("Oats | ½ cup | 0.30 | 150 | 5.0 | 2.5 | 27 | 4\nMilk | 1 cup | 0.45 | 122 | 8.1 | 4.8 | 11.7 | 0\nWater | 1 cup | 0")
+    );
+    expect(totals.kcal).toBe(272);
+    expect(totals.cost).toBeCloseTo(0.75);
+    expect(totals.protein).toBe(13.1);
   });
 
   it("divides a batch into per-serve cost", () => {
-    const capcai = dummyMealPrep()[0];
-    expect(batchCost(capcai).total).toBeCloseTo(17.86);
-    expect(batchCost(capcai).perServe).toBeCloseTo(3.572);
-    expect(batchCost({ ...capcai, portions: null }).perServe).toBeNull();
+    const dish = { costItems: parseCostLines("Chicken | 9.00\nRice | 1.60\nOil | 0.40"), portions: 5 };
+    expect(batchCost(dish).total).toBeCloseTo(11);
+    expect(batchCost(dish).perServe).toBeCloseTo(2.2);
+    expect(batchCost({ ...dish, portions: null }).perServe).toBeNull();
   });
 
   it("reads the Type select by label, falling back to veg", () => {

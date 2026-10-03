@@ -277,30 +277,42 @@ export function dummyRelationshipOptions(): FieldOptions {
   };
 }
 
-// The menu the Diet tab showed before it moved to Notion — it was never
-// private, so the demo keeps it rather than inventing dishes.
+// An invented menu — the real one lives in Notion and stays out of the demo.
 export function dummySmoothies(): Smoothie[] {
   return [
     {
       id: "d-smoothie-1",
-      name: "Kale & blueberry",
+      name: "Mango & spinach",
       order: 0,
-      description: "Every morning — kale · blueberries · ½ avocado · water + peanut butter & Greek yogurt when you like.",
+      description: "Bright and sweet — the spinach disappears behind the mango.",
       ingredients: parseSmoothieIngredients(
         [
-          "Frozen blueberries | ⅙ bag (~165 g) | 2.00 | 94 | 1.2 | 0.5 | 23.9 | 4.0",
-          "Avocado | ½ (~70 g) | 1.10 | 112 | 1.4 | 10.3 | 5.9 | 4.7",
-          "Kale (leaf) | ¼ bunch (~40 g) | 1.03 | 14 | 1.2 | 0.6 | 1.8 | 1.6",
-          "Greek yogurt | ½ cup (~125 g) | 0.47 | 113 | 7.5 | 5.6 | 7.5 | 0",
-          "Chia seeds | 1 tbsp (~12 g) | 0.31 | 58 | 2.0 | 3.7 | 5.0 | 4.1",
-          "Peanut butter | 1 tbsp (~16 g) | 0.14 | 94 | 4.0 | 8.0 | 3.2 | 1.0",
-          "Water | 1 cup | 0 | 0 | 0 | 0 | 0 | 0",
+          "Frozen mango | 1 cup (~165 g) | 1.40 | 99 | 1.4 | 0.6 | 24.7 | 2.6",
+          "Banana | 1 medium | 0.40 | 105 | 1.3 | 0.4 | 27.0 | 3.1",
+          "Baby spinach | 1 handful (~30 g) | 0.45 | 7 | 0.9 | 0.1 | 1.1 | 0.7",
+          "Oat milk | 1 cup | 0.60 | 120 | 3.0 | 5.0 | 16.0 | 2.0",
+          "Flaxseed | 1 tbsp | 0.15 | 37 | 1.3 | 3.0 | 2.0 | 1.9",
         ].join("\n")
       ),
-      costNote:
-        "Prices from Woolworths Metro after 10% member discount. One blueberry bag stretches to 6 servings, one kale bunch to ~4 days.",
-      nutritionNote:
-        "~26 g of the carbs are natural fruit + dairy sugar, packaged with 15 g fiber. Big micronutrient load — vitamin K, C, potassium — and ~2 g ALA omega-3 from the chia.",
+      costNote: "Supermarket prices, rounded.",
+      nutritionNote: "Most of the carbs are fruit sugar, balanced by ~10 g of fiber.",
+    },
+    {
+      id: "d-smoothie-2",
+      name: "Cocoa peanut",
+      order: 1,
+      description: "Post-workout — tastes like dessert, earns its protein.",
+      ingredients: parseSmoothieIngredients(
+        [
+          "Milk | 1 cup | 0.45 | 122 | 8.1 | 4.8 | 11.7 | 0",
+          "Banana | 1 medium | 0.40 | 105 | 1.3 | 0.4 | 27.0 | 3.1",
+          "Peanut butter | 1 tbsp (~16 g) | 0.20 | 94 | 4.0 | 8.0 | 3.2 | 1.0",
+          "Cocoa powder | 1 tbsp | 0.25 | 12 | 1.1 | 0.7 | 3.1 | 1.8",
+          "Rolled oats | ¼ cup | 0.15 | 75 | 2.6 | 1.3 | 13.5 | 2.0",
+        ].join("\n")
+      ),
+      costNote: "",
+      nutritionNote: "",
     },
   ];
 }
@@ -326,39 +338,34 @@ function dummyDish(prefix: string, portions: number) {
 export function dummyMealPrep(): Dish[] {
   const dish = dummyDish("prep", 5);
   return [
-    dish(0, "Capcai", "veg", "The standout — a mixed-veg stir-fry that alone pushes toward 30 plants/week. Cook with chicken, prawns or egg and be generous with oil, since it's light on calories solo.", {
+    dish(0, "Chickpea & spinach curry", "veg", "Cheap, freezes well, and the spinach goes in at the end so it stays green.", {
       costItems: parseCostLines(
-        "Chicken thigh (pack) | 5.71\nFish ball 500 g | 4.41\nBroccoli 502 g | 2.03\nSpring onion | 1.50\nGarlic (~½ pack) | 1.05\nGinger | 1.00\nSnow peas 92 g | 0.82\nBeef stock (~½ L) | 0.68\nOil (~2 tbsp) | 0.30\nCarrot 117 g | 0.27\nCornflour (~1 tbsp) | 0.09"
+        "Chickpeas 2 × 400 g | 2.40\nCoconut milk 400 ml | 2.20\nBaby spinach 120 g | 3.00\nOnion | 0.60\nGarlic & ginger | 1.20\nCurry paste | 2.50\nBrown rice 500 g | 1.60"
       ),
-      costNote: "Woolworths prices after 10% member discount. Batch of 5 portions.",
-      nutrition: { calories: 379, protein: 38, fat: 17, carbs: 22, fiber: 4 },
-      nutritionNote: "Per portion, excluding rice. Rice adds ~300 kcal. Each extra tbsp of oil adds ~120 kcal — oil is the lever if gaining feels slow.",
+      costNote: "Supermarket prices, rounded. Batch of 5.",
+      nutrition: { calories: 480, protein: 15, fat: 18, carbs: 62, fiber: 11 },
+      nutritionNote: "Per portion, including the rice.",
     }),
-    dish(1, "Ginger fish", "egg", "Basa + ginger, chili, garlic + bok choy, over rice. Most complete week — protein, calcium (bok choy), vitamins. Add generous rice + a drizzle of sesame or olive oil for calories. Basa has almost no omega-3, so lean on tuna/fish-oil that week."),
-    dish(2, "Pork & chives dumplings", "carb", "Ground pork + chives, steamed with rice. Protein, fat, calories (your richest week). Steamed greens essential — the dish has none; fold shiitake or cabbage into the filling. Highest sodium week — go lighter on oyster sauce + chicken powder."),
-    dish(3, "Ginger chicken", "veg", "Skinless drumstick (or thigh) + ginger, garlic, chili. Lean protein, B vitamins, zinc, selenium. Use two drumsticks not one; greens on the side; extra dash of sesame oil. Light on calories & veg — nuts as a snack that week."),
-    dish(4, "Sapi cincang + kacang panjang", "beef", "Minced beef + long beans: protein and a green in one pan. Best-balanced of the beef dishes thanks to the beans — but it counts toward your red-meat cap."),
-    dish(5, "Beef steak + kimchi", "beef", "Best of the beef dishes for longevity — the fermented kimchi feeds your gut microbiome. Iron, zinc, B12, creatine all help muscle gain in a surplus."),
-    dish(6, "Beef teriyaki", "beef", "Calorie-dense and useful for gaining, but the sauce is the saltiest and sugariest here — space it out and go easy on the glaze."),
-    dish(7, "Spaghetti bolognese", "beef", "Stretches beautifully: cut the beef 50/50 with lentils or extra tomato + mushroom to lower the meat load while adding fiber and lycopene."),
-    dish(8, "Kangkung cah ayam", "veg", "Stir-fry on high heat — garlic and chilli first until fragrant, add chicken until just cooked through, then fishballs and tomato for a minute, kangkung last (wilts in 30 s). Dash of fish sauce to finish. Keep the heat high so the kangkung stays vibrant rather than soggy.", {
-      costItems: parseCostLines(
-        "Chicken thigh ~750 g | 11.00\nKangkung × 3 bunches | 5.00\nFish ball 400 g (~20 balls) | 5.00\nTomato × 2 | 1.00\nChilli × 5 | 1.00\nOil (~5 tbsp) | 0.75\nGarlic (~½ pack) | 0.55\nFish sauce | 0.20"
-      ),
-      costNote: "Woolworths prices after 10% member discount. Batch of 5 portions.",
-      nutrition: { calories: 550, protein: 40, fat: 32, carbs: 20, fiber: 2 },
-      nutritionNote: "Per serve, excluding rice. Rice adds ~300 kcal. Most energy comes from the chicken thigh and cooking oil — kangkung itself is very low-calorie but packs iron, folate, and vitamin K.",
+    dish(1, "Lemon herb chicken traybake", "veg", "Everything on one tray — chicken thighs, potatoes, zucchini and red onion.", {
+      costItems: parseCostLines("Chicken thighs 1 kg | 9.00\nBaby potatoes 1 kg | 3.50\nZucchini × 2 | 2.00\nRed onion × 2 | 1.00\nLemon + herbs | 2.00\nOlive oil | 0.60"),
+      costNote: "Batch of 5.",
+      nutrition: { calories: 520, protein: 42, fat: 22, carbs: 36, fiber: 5 },
+      nutritionNote: "",
     }),
+    dish(2, "Beef & bean chilli", "beef", "Half the mince swapped for kidney beans — more fiber, still tastes like chilli."),
+    dish(3, "Salmon soba bowls", "egg", "Baked salmon over soba with edamame and a sesame-soy dressing. Keep the dressing separate until eating."),
+    dish(4, "Pumpkin & ricotta lasagne", "carb", "A vegetarian week. Roast the pumpkin first so it isn't watery."),
+    dish(5, "Lamb kofta wraps", "beef", "Koftas keep three days; build the wraps fresh with yoghurt and cucumber."),
   ];
 }
 
 export function dummyOneOff(): Dish[] {
   const dish = dummyDish("one-off", 1);
   return [
-    dish(0, "Kwetiau siram", "carb", "Flat noodles in savory gravy — easy calories, but the gravy is sodium-heavy, so this is a go-light-on-the-sauce dish."),
-    dish(1, "Bubur ikan / sapi", "carb", "Congee — great for low-appetite days when you still need calories. Pick the fish version: lighter on saturated fat and adds a little omega-3."),
-    dish(2, "Kuah telor", "egg", "Egg soup — complete protein with choline and a little vitamin D, which is otherwise scarce in your rotation. Good light main or protein-boosting side."),
-    dish(3, "Spaghetti tuna", "egg", "Already your omega-3 constant. Skipjack in oil, plus tomatoes/spinach/peas and generous olive oil."),
+    dish(0, "Shakshuka", "egg", "Eggs poached in spiced tomato — ten minutes, one pan, good with crusty bread."),
+    dish(1, "Mushroom risotto", "carb", "Slow but forgiving. A splash of white wine and plenty of parmesan."),
+    dish(2, "Fish tacos", "egg", "Crumbed white fish, slaw and lime crema."),
+    dish(3, "Pad see ew", "carb", "Wide rice noodles, gai lan and egg. Hot wok, small batches."),
   ];
 }
 
@@ -384,6 +391,14 @@ export function dummyHabits(): Habit[] {
     habit(2, "Stretch after runs", "Health", null, "Hamstrings, calves, hip flexors — 10 minutes."),
     habit(3, "Call family on Sundays", "Relationship", null, "Alternate between Mum and Dad."),
     habit(4, "Log spending weekly", "Money", null, "Sunday evening, straight into Money · Spending."),
+    // Long enough to hit the three-line limit on a phone, so the "…" shows.
+    habit(
+      6,
+      "Before opening the laptop each morning, spend ten minutes outside in daylight with no phone, then write down the single most important thing to finish today",
+      "Health",
+      null,
+      "Morning light helps set the body clock; the note keeps the day focused."
+    ),
     habit(5, "Duolingo streak", "Other", daysAgo(4), "Finished the Spanish A1 course."),
   ];
 }
@@ -413,6 +428,13 @@ export function dummyTasks(): Task[] {
     task(1, "Shortlist ryokans", "Doing", { parentId: "d-task-plan-japan-trip" }),
     task(2, "Get JR pass", "Done", { parentId: "d-task-plan-japan-trip" }),
     task(2, "Fix bike brakes", "Todo", { dueDate: daysAgo(2) }),
+    // Long titles, to show cards wrapping to three lines before the "…".
+    task(3, "Sort out the home contents insurance renewal, compare at least three quotes, check the excess and whether the bike and laptop are covered away from home", "Todo", {
+      dueDate: daysAgo(-9),
+    }),
+    task(3, "Ask about a group discount for the Kyoto tea ceremony and whether it can be moved to the morning so it doesn't clash with the Fushimi Inari hike", "Todo", {
+      parentId: "d-task-plan-japan-trip",
+    }),
     task(0, "Quarterly tax estimate", "Doing", { dueDate: daysAgo(-5), description: "Pull the numbers from Money · Spending first." }),
     task(1, "Clear out the garage", "Doing"),
     task(0, "Switch electricity plan", "Done", { description: "Saved ~$140/yr." }),
