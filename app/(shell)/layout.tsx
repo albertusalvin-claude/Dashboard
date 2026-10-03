@@ -12,7 +12,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
             className="font-display font-extrabold leading-none tracking-tight text-ink"
             style={{ fontSize: "clamp(40px,7vw,72px)" }}
           >
-            Life Dashboard
+            Dashboard
           </h1>
           <DataModeSwitch />
         </header>

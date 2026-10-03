@@ -26,7 +26,7 @@ const spaceMono = Space_Mono({
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Personal money & health dashboard",
+  description: "Personal dashboard — actionables, money, health and relationships",
 };
 
 export default function RootLayout({

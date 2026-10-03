@@ -1,4 +1,4 @@
-# Life Dashboard
+# Dashboard
 ## Stack
 
 | | |
