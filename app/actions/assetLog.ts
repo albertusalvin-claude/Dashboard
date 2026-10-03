@@ -53,6 +53,22 @@ async function updatePage(pageId: string, apiKey: string, name: string, properti
   return { ok: true };
 }
 
+// Archiving is what Notion's own Delete does, and it works the same whichever
+// log the page lives in — so one action serves all four.
+export async function deleteLogEntry(pageId: string): Promise<Result> {
+  const apiKey = process.env.NOTION_API_KEY;
+  if (!apiKey) return { ok: false, error: "NOTION_API_KEY is not set." };
+
+  const res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+    method: "PATCH",
+    headers: NOTION_HEADERS(apiKey),
+    body: JSON.stringify({ archived: true }),
+  });
+  if (!res.ok) return { ok: false, error: await res.text() };
+  revalidateLogPages();
+  return { ok: true };
+}
+
 // --- Investments Log ---
 
 export async function addInvestmentLogEntry(input: {

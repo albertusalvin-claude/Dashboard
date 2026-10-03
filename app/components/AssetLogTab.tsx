@@ -18,6 +18,7 @@ import {
   updateSuperannuationLogEntry,
   addStockOptionsLogEntry,
   updateStockOptionsLogEntry,
+  deleteLogEntry,
 } from "../actions/assetLog";
 
 const dollars = (v: number, decimals = 0) =>
@@ -77,6 +78,13 @@ function EditableLogTable({
   const [newDraft, setNewDraft] = useState(emptyDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, string | number> | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function stopEditing() {
+    setEditingId(null);
+    setEditDraft(null);
+    setConfirmingDelete(false);
+  }
 
   function run(action: () => Promise<ActionResult>, onSuccess: () => void) {
     setError(null);
@@ -174,28 +182,34 @@ function EditableLogTable({
                       </td>
                       <td className="py-1.5 px-2 text-right whitespace-nowrap">
                         <button
-                          onClick={() =>
-                            run(
-                              () => onUpdate({ id: entry.id, ...editDraft }),
-                              () => {
-                                setEditingId(null);
-                                setEditDraft(null);
-                              }
-                            )
-                          }
+                          onClick={() => run(() => onUpdate({ id: entry.id, ...editDraft }), stopEditing)}
                           disabled={isPending}
                           className="font-mono text-xs px-2 py-1 rounded-full bg-ink text-paper mr-1 disabled:opacity-40"
                         >
                           Save
                         </button>
                         <button
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditDraft(null);
-                          }}
-                          className="font-mono text-xs px-2 py-1 rounded-full border border-line text-ink-soft"
+                          onClick={stopEditing}
+                          className="font-mono text-xs px-2 py-1 rounded-full border border-line text-ink-soft mr-1"
                         >
                           Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!confirmingDelete) {
+                              setConfirmingDelete(true);
+                              return;
+                            }
+                            run(() => deleteLogEntry(entry.id), stopEditing);
+                          }}
+                          disabled={isPending}
+                          className={`font-mono text-xs px-2 py-1 rounded-full border transition-colors disabled:opacity-40 ${
+                            confirmingDelete
+                              ? "border-[#CB3A1E] text-[#CB3A1E] bg-[rgba(203,58,30,0.08)]"
+                              : "border-line text-ink-soft hover:border-[#CB3A1E] hover:text-[#CB3A1E]"
+                          }`}
+                        >
+                          {confirmingDelete ? "Tap again to delete" : "Delete"}
                         </button>
                       </td>
                     </>
@@ -212,6 +226,7 @@ function EditableLogTable({
                           onClick={() => {
                             setEditingId(entry.id);
                             setEditDraft({ ...entry });
+                            setConfirmingDelete(false);
                           }}
                           className="font-mono text-xs px-2 py-1 rounded-full border border-line text-ink-soft hover:border-ink-soft hover:text-ink"
                         >
