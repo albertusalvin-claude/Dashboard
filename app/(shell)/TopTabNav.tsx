@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
+  { href: "/actionables", label: "actionables" },
   { href: "/money", label: "money" },
   { href: "/health", label: "health" },
   { href: "/relationship", label: "relationship" },
-  { href: "/actionables", label: "actionables" },
 ] as const;
 
 export default function TopTabNav() {
