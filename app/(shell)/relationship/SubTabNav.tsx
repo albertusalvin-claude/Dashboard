@@ -12,7 +12,7 @@ export default function SubTabNav() {
   const base = pathname.startsWith("/dummy") ? "/dummy" : "";
 
   return (
-    <div className="flex gap-2 mb-8">
+    <div className="flex flex-wrap gap-2 mb-8">
       {TABS.map(({ href, label }) => {
         const active = pathname === `${base}${href}`;
         return (

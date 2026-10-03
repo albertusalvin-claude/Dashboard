@@ -260,10 +260,12 @@ export default function ActionableDetail({ selection, habits, tasks, nextOrder, 
             <button
               key={s.id}
               onClick={() => onSelect({ kind: "task", id: s.id })}
-              className="w-full flex items-center gap-2 text-left text-sm bg-card border border-line rounded-xl px-3 py-2 hover:border-ink-soft cursor-pointer"
+              className="w-full flex items-start gap-2 text-left text-sm bg-card border border-line rounded-xl px-3 py-2 hover:border-ink-soft cursor-pointer"
             >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATUS_COLOR[s.status] }} />
-              <span className={s.status === "Done" ? "line-through text-ink-soft" : "text-ink"}>{s.name}</span>
+              <span className="w-2 h-2 mt-1.5 rounded-full shrink-0" style={{ background: STATUS_COLOR[s.status] }} />
+              <span className={`min-w-0 line-clamp-3 break-words ${s.status === "Done" ? "line-through text-ink-soft" : "text-ink"}`}>
+                {s.name}
+              </span>
             </button>
           ))}
           <button

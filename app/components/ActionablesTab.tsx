@@ -73,6 +73,20 @@ function SectionTitle({ title, action }: { title: string; action?: ReactNode }) 
   );
 }
 
+/**
+ * A card's name and its details (category, dates). The name wraps to at most
+ * three lines before ending in "…". On a phone the details sit under the name
+ * so it keeps the full width; from sm up they sit to its right.
+ */
+function CardText({ name, nameClass, meta }: { name: string; nameClass: string; meta?: ReactNode }) {
+  return (
+    <div className="flex-1 min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-3">
+      <span className={`flex-1 min-w-0 line-clamp-3 break-words ${nameClass}`}>{name}</span>
+      {meta && <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:mt-0.5">{meta}</div>}
+    </div>
+  );
+}
+
 /** Applies moves to a list, so a drag shows before Notion has saved it. */
 function applyMoves<T extends { id: string; order: number }>(items: T[], moves: Move[]): T[] {
   const byId = new Map(moves.map((m) => [m.id, m]));
@@ -209,7 +223,7 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
       },
       onDragEnd: endDrag,
       onClick: () => setSelection({ kind, id }),
-      className: `flex items-center gap-3 bg-card border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
+      className: `flex items-start gap-3 bg-card border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
         isSelected(kind, id) ? "border-ink" : "border-line hover:border-ink-soft"
       } ${dragging?.id === id ? "opacity-40" : ""}`,
       // A chili line above the card shows where the dragged one will land.
@@ -264,19 +278,26 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
               const ended = habit.endDate !== null && habit.endDate < today;
               return (
                 <div key={habit.id} {...cardProps("habit", habit.id, () => dropHabit(habit.id))}>
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: CATEGORY_COLOR[habit.category] }} />
-                  <span className={`flex-1 min-w-0 truncate ${ended ? "text-ink-soft" : "text-ink"}`}>{habit.name}</span>
-                  <span
-                    className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
-                    style={{ color: CATEGORY_COLOR[habit.category], background: `${CATEGORY_COLOR[habit.category]}1F` }}
-                  >
-                    {habit.category}
-                  </span>
-                  {habit.endDate && (
-                    <span className="font-mono text-xs text-ink-soft shrink-0">
-                      {ended ? "ended" : "until"} {formatDate(habit.endDate)}
-                    </span>
-                  )}
+                  <span className="w-2 h-2 mt-2 rounded-full shrink-0" style={{ background: CATEGORY_COLOR[habit.category] }} />
+                  <CardText
+                    name={habit.name}
+                    nameClass={ended ? "text-ink-soft" : "text-ink"}
+                    meta={
+                      <>
+                        <span
+                          className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full"
+                          style={{ color: CATEGORY_COLOR[habit.category], background: `${CATEGORY_COLOR[habit.category]}1F` }}
+                        >
+                          {habit.category}
+                        </span>
+                        {habit.endDate && (
+                          <span className="font-mono text-xs text-ink-soft">
+                            {ended ? "ended" : "until"} {formatDate(habit.endDate)}
+                          </span>
+                        )}
+                      </>
+                    }
+                  />
                 </div>
               );
             })}
@@ -311,28 +332,29 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
                     return (
                       <div key={task.id} className="space-y-1.5">
                         <div {...cardProps("task", task.id, () => dropTask(status, task.id))}>
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATUS_COLOR[task.status] }} />
-                          <span
-                            className={`flex-1 min-w-0 truncate ${task.status === "Done" ? "line-through text-ink-soft" : "text-ink"}`}
-                          >
-                            {task.name}
-                          </span>
-                          {task.dueDate && (
-                            <span className={`font-mono text-xs shrink-0 ${overdue ? "text-chili font-bold" : "text-ink-soft"}`}>
-                              due {formatDate(task.dueDate)}
-                            </span>
-                          )}
+                          <span className="w-2 h-2 mt-2 rounded-full shrink-0" style={{ background: STATUS_COLOR[task.status] }} />
+                          <CardText
+                            name={task.name}
+                            nameClass={task.status === "Done" ? "line-through text-ink-soft" : "text-ink"}
+                            meta={
+                              task.dueDate && (
+                                <span className={`font-mono text-xs ${overdue ? "text-chili font-bold" : "text-ink-soft"}`}>
+                                  due {formatDate(task.dueDate)}
+                                </span>
+                              )
+                            }
+                          />
                         </div>
                         {subtasks.map((sub) => (
                           <button
                             key={sub.id}
                             onClick={() => setSelection({ kind: "task", id: sub.id })}
-                            className={`ml-8 w-[calc(100%-2rem)] flex items-center gap-2 text-left text-sm bg-card border rounded-xl px-3 py-2 cursor-pointer transition-colors ${
+                            className={`ml-8 w-[calc(100%-2rem)] flex items-start gap-2 text-left text-sm bg-card border rounded-xl px-3 py-2 cursor-pointer transition-colors ${
                               isSelected("task", sub.id) ? "border-ink" : "border-line hover:border-ink-soft"
                             }`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: STATUS_COLOR[sub.status] }} />
-                            <span className={`truncate ${sub.status === "Done" ? "line-through text-ink-soft" : "text-ink"}`}>
+                            <span className="w-1.5 h-1.5 mt-[7px] rounded-full shrink-0" style={{ background: STATUS_COLOR[sub.status] }} />
+                            <span className={`min-w-0 line-clamp-3 break-words ${sub.status === "Done" ? "line-through text-ink-soft" : "text-ink"}`}>
                               {sub.name}
                             </span>
                           </button>
