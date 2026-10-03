@@ -207,7 +207,7 @@ export default function SmoothieMenu({ smoothies }: { smoothies: Smoothie[] }) {
   return (
     <MenuSection
       items={smoothies}
-      gridClassName="grid grid-cols-1 lg:grid-cols-2 gap-3"
+      gridClassName="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3"
       addLabel="Add smoothie"
       renderCard={(smoothie, actions) => <SmoothieCard smoothie={smoothie} actions={actions} />}
       renderForm={({ item, nextOrder, onClose }) => <SmoothieForm smoothie={item} nextOrder={nextOrder} onClose={onClose} />}

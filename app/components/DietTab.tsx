@@ -90,7 +90,7 @@ export default function DietTab({ smoothies, mealPrep, oneOff }: Props) {
           sub="Every dish you batch-cook. Add cost and nutrition as you work them out — totals and per-serve figures follow."
         />
         {mealPrep ? (
-          <DishMenu kind="mealPrep" dishes={mealPrep} gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" />
+          <DishMenu kind="mealPrep" dishes={mealPrep} gridClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3" />
         ) : (
           <NotConnected envVar="NOTION_MEAL_PREP_ID" />
         )}
@@ -110,7 +110,7 @@ export default function DietTab({ smoothies, mealPrep, oneOff }: Props) {
           sub="Cooked occasionally rather than batched — your omega-3 constants and easy calorie options."
         />
         {oneOff ? (
-          <DishMenu kind="oneOff" dishes={oneOff} gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-3" />
+          <DishMenu kind="oneOff" dishes={oneOff} gridClassName="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3" />
         ) : (
           <NotConnected envVar="NOTION_ONE_OFF_ID" />
         )}
@@ -180,7 +180,7 @@ export default function DietTab({ smoothies, mealPrep, oneOff }: Props) {
               <h3 className="font-display font-bold text-xl text-ink tracking-tight">Daily micro targets</h3>
               <p className="text-sm text-ink-soft mt-1 max-w-xl">Most are covered by the daily smoothie and your dishes. Two are supplement-backed; a few deserve a weekly glance.</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-line border border-line rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-px bg-line border border-line rounded-2xl overflow-hidden">
               {MICROS.map(({ name, amount, src, tag, tagLabel }) => (
                 <div key={name} className="bg-card p-4 flex flex-col gap-1">
                   <div className="flex items-baseline justify-between gap-2">
