@@ -66,6 +66,7 @@ in the app's property tables.
 | **Money** | `/money/projection` · `/money/logs` · `/money/spending` | projection assumptions, four asset logs, spending, shopping list |
 | **Health** | `/health/diet` · `/health/fitness` | diet menu (smoothies, meal prep, one-off dishes); fitness reads weight and blood pressure |
 | **Relationship** | `/relationship/location` | people, pinned on a generated world map |
+| **Actionables** | `/actionables` | habits, and tasks with subtasks moving through Todo → Doing → Done |
 | **Dummy** | `/dummy/**` — mirrors every tab above | invented fixtures; writes are refused, so it needs no databases |
 
 A `real | dummy` switch in the header swaps between a tab and its stand-in copy. The dummy routes exist
@@ -95,6 +96,8 @@ Set in the Vercel project, not in the repository.
 | `NOTION_SMOOTHIES_ID` | Health · Diet |
 | `NOTION_MEAL_PREP_ID` | Health · Diet |
 | `NOTION_ONE_OFF_ID` | Health · Diet |
+| `NOTION_HABITS_ID` | Actionables |
+| `NOTION_TASKS_ID` | Actionables |
 | `NOTION_RELATIONSHIPS_ID` | Relationship · Location |
 
 ## Generated files

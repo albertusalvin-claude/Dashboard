@@ -12,6 +12,7 @@ import type { BPEntry } from "./getBPLog";
 import type { FieldOptions, Person } from "./getRelationships";
 import { DEFAULT_FI_ASSUMPTIONS, type FIAssumptions } from "./fiProjection";
 import { parseCostLines, parseSmoothieIngredients, type DishType, type Dish, type Smoothie } from "./dietMenu";
+import type { Habit, HabitCategory, Task, TaskStatus } from "./actionables";
 
 // Stand-in data for the /dummy routes: enough in every tab to see the charts,
 // tables and forms populated without touching the real database, and without
@@ -358,5 +359,63 @@ export function dummyOneOff(): Dish[] {
     dish(1, "Bubur ikan / sapi", "carb", "Congee — great for low-appetite days when you still need calories. Pick the fish version: lighter on saturated fat and adds a little omega-3."),
     dish(2, "Kuah telor", "egg", "Egg soup — complete protein with choline and a little vitamin D, which is otherwise scarce in your rotation. Good light main or protein-boosting side."),
     dish(3, "Spaghetti tuna", "egg", "Already your omega-3 constant. Skipjack in oil, plus tomatoes/spinach/peas and generous olive oil."),
+  ];
+}
+
+/** An ISO timestamp `offset` days back, for Notion's created / last-edited times. */
+function stampDaysAgo(offset: number, hour = 9): string {
+  return `${daysAgo(offset)}T${String(hour).padStart(2, "0")}:15:00.000Z`;
+}
+
+export function dummyHabits(): Habit[] {
+  const habit = (order: number, name: string, category: HabitCategory, endDate: string | null, description: string): Habit => ({
+    id: `d-habit-${order}`,
+    name,
+    order,
+    category,
+    endDate,
+    description,
+    createdTime: stampDaysAgo(40 - order * 5),
+    lastEditedTime: stampDaysAgo(3 + order),
+  });
+  return [
+    habit(0, "Read 20 pages", "Other", null, "Before bed, phone in the other room."),
+    habit(1, "No sugary drinks", "Health", daysAgo(-21), "30-day reset. Sparkling water is fine."),
+    habit(2, "Stretch after runs", "Health", null, "Hamstrings, calves, hip flexors — 10 minutes."),
+    habit(3, "Call family on Sundays", "Relationship", null, "Alternate between Mum and Dad."),
+    habit(4, "Log spending weekly", "Money", null, "Sunday evening, straight into Money · Spending."),
+    habit(5, "Duolingo streak", "Other", daysAgo(4), "Finished the Spanish A1 course."),
+  ];
+}
+
+export function dummyTasks(): Task[] {
+  const task = (
+    order: number,
+    name: string,
+    status: TaskStatus,
+    extra: Partial<Task> = {}
+  ): Task => ({
+    id: `d-task-${name.toLowerCase().replace(/[^a-z]+/g, "-")}`,
+    name,
+    order,
+    status,
+    dueDate: null,
+    description: "",
+    parentId: null,
+    createdTime: stampDaysAgo(20 - order),
+    lastEditedTime: stampDaysAgo(1, 14),
+    ...extra,
+  });
+  return [
+    task(0, "Renew passport", "Todo", { dueDate: daysAgo(-14), description: "Photos from the post office; the old passport has to go in with the form." }),
+    task(1, "Plan Japan trip", "Todo", { dueDate: daysAgo(-60), description: "Two weeks in April. Tokyo → Kyoto → Osaka." }),
+    task(0, "Book flights", "Todo", { parentId: "d-task-plan-japan-trip", dueDate: daysAgo(-30) }),
+    task(1, "Shortlist ryokans", "Doing", { parentId: "d-task-plan-japan-trip" }),
+    task(2, "Get JR pass", "Done", { parentId: "d-task-plan-japan-trip" }),
+    task(2, "Fix bike brakes", "Todo", { dueDate: daysAgo(2) }),
+    task(0, "Quarterly tax estimate", "Doing", { dueDate: daysAgo(-5), description: "Pull the numbers from Money · Spending first." }),
+    task(1, "Clear out the garage", "Doing"),
+    task(0, "Switch electricity plan", "Done", { description: "Saved ~$140/yr." }),
+    task(1, "Dentist check-up", "Done"),
   ];
 }

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 // Only these trees have a stand-in copy under /dummy — everything else hides
 // the switch rather than offering a link that would 404.
-const SWITCHABLE = ["/money", "/health", "/relationship"];
+const SWITCHABLE = ["/money", "/health", "/relationship", "/actionables"];
 
 export default function DataModeSwitch() {
   const pathname = usePathname();
