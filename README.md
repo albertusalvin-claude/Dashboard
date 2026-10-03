@@ -64,7 +64,7 @@ in the app's property tables.
 | Tab | Routes | Data |
 |---|---|---|
 | **Money** | `/money/projection` · `/money/logs` · `/money/spending` | projection assumptions, four asset logs, spending, shopping list |
-| **Health** | `/health/diet` · `/health/fitness` | diet is static content; fitness reads weight and blood pressure |
+| **Health** | `/health/diet` · `/health/fitness` | diet menu (smoothies, meal prep, one-off dishes); fitness reads weight and blood pressure |
 | **Relationship** | `/relationship/location` | people, pinned on a generated world map |
 | **Dummy** | `/dummy/**` — mirrors every tab above | invented fixtures; writes are refused, so it needs no databases |
 
@@ -92,6 +92,9 @@ Set in the Vercel project, not in the repository.
 | `NOTION_SHOPPING_LIST_ID` | Money · Spending |
 | `NOTION_WEIGHT_LOG_ID` | Health · Fitness |
 | `NOTION_BP_LOG_ID` | Health · Fitness |
+| `NOTION_SMOOTHIES_ID` | Health · Diet |
+| `NOTION_MEAL_PREP_ID` | Health · Diet |
+| `NOTION_ONE_OFF_ID` | Health · Diet |
 | `NOTION_RELATIONSHIPS_ID` | Relationship · Location |
 
 ## Generated files

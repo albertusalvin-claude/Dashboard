@@ -11,6 +11,7 @@ import type { WeightEntry } from "./getWeightLog";
 import type { BPEntry } from "./getBPLog";
 import type { FieldOptions, Person } from "./getRelationships";
 import { DEFAULT_FI_ASSUMPTIONS, type FIAssumptions } from "./fiProjection";
+import { parseCostLines, parseSmoothieIngredients, type DishType, type Dish, type Smoothie } from "./dietMenu";
 
 // Stand-in data for the /dummy routes: enough in every tab to see the charts,
 // tables and forms populated without touching the real database, and without
@@ -273,4 +274,89 @@ export function dummyRelationshipOptions(): FieldOptions {
     occupations: ["Designer", "Engineer", "Doctor", "Trader", "Analyst"],
     utilities: ["Has a car", "Spare room", "Medical advice", "Intros to investors"],
   };
+}
+
+// The menu the Diet tab showed before it moved to Notion — it was never
+// private, so the demo keeps it rather than inventing dishes.
+export function dummySmoothies(): Smoothie[] {
+  return [
+    {
+      id: "d-smoothie-1",
+      name: "Kale & blueberry",
+      order: 0,
+      description: "Every morning — kale · blueberries · ½ avocado · water + peanut butter & Greek yogurt when you like.",
+      ingredients: parseSmoothieIngredients(
+        [
+          "Frozen blueberries | ⅙ bag (~165 g) | 2.00 | 94 | 1.2 | 0.5 | 23.9 | 4.0",
+          "Avocado | ½ (~70 g) | 1.10 | 112 | 1.4 | 10.3 | 5.9 | 4.7",
+          "Kale (leaf) | ¼ bunch (~40 g) | 1.03 | 14 | 1.2 | 0.6 | 1.8 | 1.6",
+          "Greek yogurt | ½ cup (~125 g) | 0.47 | 113 | 7.5 | 5.6 | 7.5 | 0",
+          "Chia seeds | 1 tbsp (~12 g) | 0.31 | 58 | 2.0 | 3.7 | 5.0 | 4.1",
+          "Peanut butter | 1 tbsp (~16 g) | 0.14 | 94 | 4.0 | 8.0 | 3.2 | 1.0",
+          "Water | 1 cup | 0 | 0 | 0 | 0 | 0 | 0",
+        ].join("\n")
+      ),
+      costNote:
+        "Prices from Woolworths Metro after 10% member discount. One blueberry bag stretches to 6 servings, one kale bunch to ~4 days.",
+      nutritionNote:
+        "~26 g of the carbs are natural fruit + dairy sugar, packaged with 15 g fiber. Big micronutrient load — vitamin K, C, potassium — and ~2 g ALA omega-3 from the chia.",
+    },
+  ];
+}
+
+const noNutrition = { calories: null, protein: null, fat: null, carbs: null, fiber: null };
+
+function dummyDish(prefix: string, portions: number) {
+  return (order: number, name: string, type: DishType, notes: string, extra: Partial<Dish> = {}): Dish => ({
+    id: `d-${prefix}-${order}`,
+    name,
+    order,
+    type,
+    notes,
+    portions,
+    costItems: [],
+    costNote: "",
+    nutrition: noNutrition,
+    nutritionNote: "",
+    ...extra,
+  });
+}
+
+export function dummyMealPrep(): Dish[] {
+  const dish = dummyDish("prep", 5);
+  return [
+    dish(0, "Capcai", "veg", "The standout — a mixed-veg stir-fry that alone pushes toward 30 plants/week. Cook with chicken, prawns or egg and be generous with oil, since it's light on calories solo.", {
+      costItems: parseCostLines(
+        "Chicken thigh (pack) | 5.71\nFish ball 500 g | 4.41\nBroccoli 502 g | 2.03\nSpring onion | 1.50\nGarlic (~½ pack) | 1.05\nGinger | 1.00\nSnow peas 92 g | 0.82\nBeef stock (~½ L) | 0.68\nOil (~2 tbsp) | 0.30\nCarrot 117 g | 0.27\nCornflour (~1 tbsp) | 0.09"
+      ),
+      costNote: "Woolworths prices after 10% member discount. Batch of 5 portions.",
+      nutrition: { calories: 379, protein: 38, fat: 17, carbs: 22, fiber: 4 },
+      nutritionNote: "Per portion, excluding rice. Rice adds ~300 kcal. Each extra tbsp of oil adds ~120 kcal — oil is the lever if gaining feels slow.",
+    }),
+    dish(1, "Ginger fish", "egg", "Basa + ginger, chili, garlic + bok choy, over rice. Most complete week — protein, calcium (bok choy), vitamins. Add generous rice + a drizzle of sesame or olive oil for calories. Basa has almost no omega-3, so lean on tuna/fish-oil that week."),
+    dish(2, "Pork & chives dumplings", "carb", "Ground pork + chives, steamed with rice. Protein, fat, calories (your richest week). Steamed greens essential — the dish has none; fold shiitake or cabbage into the filling. Highest sodium week — go lighter on oyster sauce + chicken powder."),
+    dish(3, "Ginger chicken", "veg", "Skinless drumstick (or thigh) + ginger, garlic, chili. Lean protein, B vitamins, zinc, selenium. Use two drumsticks not one; greens on the side; extra dash of sesame oil. Light on calories & veg — nuts as a snack that week."),
+    dish(4, "Sapi cincang + kacang panjang", "beef", "Minced beef + long beans: protein and a green in one pan. Best-balanced of the beef dishes thanks to the beans — but it counts toward your red-meat cap."),
+    dish(5, "Beef steak + kimchi", "beef", "Best of the beef dishes for longevity — the fermented kimchi feeds your gut microbiome. Iron, zinc, B12, creatine all help muscle gain in a surplus."),
+    dish(6, "Beef teriyaki", "beef", "Calorie-dense and useful for gaining, but the sauce is the saltiest and sugariest here — space it out and go easy on the glaze."),
+    dish(7, "Spaghetti bolognese", "beef", "Stretches beautifully: cut the beef 50/50 with lentils or extra tomato + mushroom to lower the meat load while adding fiber and lycopene."),
+    dish(8, "Kangkung cah ayam", "veg", "Stir-fry on high heat — garlic and chilli first until fragrant, add chicken until just cooked through, then fishballs and tomato for a minute, kangkung last (wilts in 30 s). Dash of fish sauce to finish. Keep the heat high so the kangkung stays vibrant rather than soggy.", {
+      costItems: parseCostLines(
+        "Chicken thigh ~750 g | 11.00\nKangkung × 3 bunches | 5.00\nFish ball 400 g (~20 balls) | 5.00\nTomato × 2 | 1.00\nChilli × 5 | 1.00\nOil (~5 tbsp) | 0.75\nGarlic (~½ pack) | 0.55\nFish sauce | 0.20"
+      ),
+      costNote: "Woolworths prices after 10% member discount. Batch of 5 portions.",
+      nutrition: { calories: 550, protein: 40, fat: 32, carbs: 20, fiber: 2 },
+      nutritionNote: "Per serve, excluding rice. Rice adds ~300 kcal. Most energy comes from the chicken thigh and cooking oil — kangkung itself is very low-calorie but packs iron, folate, and vitamin K.",
+    }),
+  ];
+}
+
+export function dummyOneOff(): Dish[] {
+  const dish = dummyDish("one-off", 1);
+  return [
+    dish(0, "Kwetiau siram", "carb", "Flat noodles in savory gravy — easy calories, but the gravy is sodium-heavy, so this is a go-light-on-the-sauce dish."),
+    dish(1, "Bubur ikan / sapi", "carb", "Congee — great for low-appetite days when you still need calories. Pick the fish version: lighter on saturated fat and adds a little omega-3."),
+    dish(2, "Kuah telor", "egg", "Egg soup — complete protein with choline and a little vitamin D, which is otherwise scarce in your rotation. Good light main or protein-boosting side."),
+    dish(3, "Spaghetti tuna", "egg", "Already your omega-3 constant. Skipjack in oil, plus tomatoes/spinach/peas and generous olive oil."),
+  ];
 }
