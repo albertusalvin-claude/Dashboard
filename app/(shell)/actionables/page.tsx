@@ -1,5 +1,5 @@
 import ActionablesTab from "../../components/ActionablesTab";
-import { getHabits, getTasks, isHabitsConfigured, isTasksConfigured } from "../../lib/getActionables";
+import { getHabits, getTaskProjects, getTasks, isHabitsConfigured, isTasksConfigured } from "../../lib/getActionables";
 
 // Overdue and ended are judged against the dashboard owner's calendar day,
 // not the server's (UTC on Vercel).
@@ -10,5 +10,6 @@ export default async function ActionablesPage() {
     isHabitsConfigured() ? getHabits() : null,
     isTasksConfigured() ? getTasks() : null,
   ]);
-  return <ActionablesTab habits={habits} tasks={tasks} today={today()} />;
+  const projects = tasks ? await getTaskProjects(tasks) : { all: [], archived: [] };
+  return <ActionablesTab habits={habits} tasks={tasks} projects={projects} today={today()} />;
 }

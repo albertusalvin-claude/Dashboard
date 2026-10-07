@@ -12,7 +12,7 @@ import type { BPEntry } from "./getBPLog";
 import type { FieldOptions, Person } from "./getRelationships";
 import { DEFAULT_FI_ASSUMPTIONS, type FIAssumptions } from "./fiProjection";
 import { parseCostLines, parseSmoothieIngredients, type DishType, type Dish, type Smoothie } from "./dietMenu";
-import type { Habit, HabitCategory, Task, TaskStatus } from "./actionables";
+import type { Habit, HabitCategory, HabitStatus, Task, TaskStatus } from "./actionables";
 
 // Stand-in data for the /dummy routes: enough in every tab to see the charts,
 // tables and forms populated without touching the real database, and without
@@ -375,10 +375,18 @@ function stampDaysAgo(offset: number, hour = 9): string {
 }
 
 export function dummyHabits(): Habit[] {
-  const habit = (order: number, name: string, category: HabitCategory, endDate: string | null, description: string): Habit => ({
-    id: `d-habit-${order}`,
+  const habit = (
+    order: number,
+    name: string,
+    category: HabitCategory,
+    endDate: string | null,
+    description: string,
+    status: HabitStatus = "Active"
+  ): Habit => ({
+    id: `d-habit-${name.toLowerCase().replace(/[^a-z]+/g, "-").slice(0, 40)}`,
     name,
     order,
+    status,
     category,
     endDate,
     description,
@@ -400,6 +408,9 @@ export function dummyHabits(): Habit[] {
       "Morning light helps set the body clock; the note keeps the day focused."
     ),
     habit(5, "Duolingo streak", "Other", daysAgo(4), "Finished the Spanish A1 course."),
+    habit(0, "Meal prep on Sundays", "Health", null, "Start once the new kitchen shelves are up.", "Backlog"),
+    habit(1, "Monthly coffee with an old friend", "Relationship", null, "", "Backlog"),
+    habit(0, "Cold showers", "Health", null, "Tried for a month; not for me.", "Archived"),
   ];
 }
 
@@ -414,6 +425,7 @@ export function dummyTasks(): Task[] {
     name,
     order,
     status,
+    project: "General",
     dueDate: null,
     description: "",
     parentId: null,
@@ -423,21 +435,23 @@ export function dummyTasks(): Task[] {
   });
   return [
     task(0, "Renew passport", "Todo", { dueDate: daysAgo(-14), description: "Photos from the post office; the old passport has to go in with the form." }),
-    task(1, "Plan Japan trip", "Todo", { dueDate: daysAgo(-60), description: "Two weeks in April. Tokyo → Kyoto → Osaka." }),
-    task(0, "Book flights", "Todo", { parentId: "d-task-plan-japan-trip", dueDate: daysAgo(-30) }),
-    task(1, "Shortlist ryokans", "Doing", { parentId: "d-task-plan-japan-trip" }),
-    task(2, "Get JR pass", "Done", { parentId: "d-task-plan-japan-trip" }),
-    task(2, "Fix bike brakes", "Todo", { dueDate: daysAgo(2) }),
+    task(1, "Plan Japan trip", "Todo", { project: "Travel", dueDate: daysAgo(-60), description: "Two weeks in April. Tokyo → Kyoto → Osaka." }),
+    task(0, "Book flights", "Todo", { project: "Travel", parentId: "d-task-plan-japan-trip", dueDate: daysAgo(-30) }),
+    task(1, "Shortlist ryokans", "Doing", { project: "Travel", parentId: "d-task-plan-japan-trip" }),
+    task(2, "Get JR pass", "Done", { project: "Travel", parentId: "d-task-plan-japan-trip" }),
+    task(2, "Fix bike brakes", "Todo", { project: "Home", dueDate: daysAgo(2) }),
     // Long titles, to show cards wrapping to three lines before the "…".
     task(3, "Sort out the home contents insurance renewal, compare at least three quotes, check the excess and whether the bike and laptop are covered away from home", "Todo", {
       dueDate: daysAgo(-9),
     }),
     task(3, "Ask about a group discount for the Kyoto tea ceremony and whether it can be moved to the morning so it doesn't clash with the Fushimi Inari hike", "Todo", {
+      project: "Travel",
       parentId: "d-task-plan-japan-trip",
     }),
-    task(0, "Quarterly tax estimate", "Doing", { dueDate: daysAgo(-5), description: "Pull the numbers from Money · Spending first." }),
-    task(1, "Clear out the garage", "Doing"),
-    task(0, "Switch electricity plan", "Done", { description: "Saved ~$140/yr." }),
+    task(0, "Quarterly tax estimate", "Doing", { project: "Admin", dueDate: daysAgo(-5), description: "Pull the numbers from Money · Spending first." }),
+    task(1, "Clear out the garage", "Doing", { project: "Home" }),
+    task(0, "Switch electricity plan", "Done", { project: "Admin", description: "Saved ~$140/yr." }),
     task(1, "Dentist check-up", "Done"),
+    task(2, "Build the raised veggie bed", "Done", { project: "Garden" }),
   ];
 }

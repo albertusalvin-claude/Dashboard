@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { addHabit, addTask, deleteActionables, updateHabit, updateTask } from "../actions/actionables";
 import {
   CATEGORY_COLOR,
+  GENERAL_PROJECT,
   HABIT_CATEGORIES,
+  HABIT_STATUSES,
+  HABIT_STATUS_COLOR,
   STATUS_COLOR,
   TASK_STATUSES,
   formatTimestamp,
   type Habit,
   type HabitCategory,
   type HabitDraft,
+  type HabitStatus,
   type Task,
   type TaskDraft,
   type TaskStatus,
@@ -21,8 +25,8 @@ import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
 export type Selection =
   | { kind: "habit"; id: string }
   | { kind: "task"; id: string }
-  | { kind: "newHabit" }
-  | { kind: "newTask"; status: TaskStatus; parentId: string | null };
+  | { kind: "newHabit"; status: HabitStatus }
+  | { kind: "newTask"; status: TaskStatus; parentId: string | null; project: string };
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -42,6 +46,8 @@ type Props = {
   selection: Selection;
   habits: Habit[];
   tasks: Task[];
+  /** The projects a task can be filed in — not the archived ones. */
+  projects: string[];
   /** Order a newly added habit or task gets — after everything else. */
   nextOrder: number;
   onSelect: (selection: Selection | null) => void;
@@ -52,7 +58,7 @@ type Props = {
  * metadata box (created / last edited from Notion, plus the date and status),
  * the description, and for a task its subtasks.
  */
-export default function ActionableDetail({ selection, habits, tasks, nextOrder, onSelect }: Props) {
+export default function ActionableDetail({ selection, habits, tasks, projects, nextOrder, onSelect }: Props) {
   const router = useRouter();
   const isDummy = useIsDummyRoute();
   const [isPending, startTransition] = useTransition();
@@ -69,13 +75,22 @@ export default function ActionableDetail({ selection, habits, tasks, nextOrder, 
   const existing = habit ?? task;
 
   const [habitDraft, setHabitDraft] = useState<HabitDraft>(
-    habit ?? { name: "", order: nextOrder, category: "Other", endDate: null, description: "" }
+    habit ?? {
+      name: "",
+      order: nextOrder,
+      status: selection.kind === "newHabit" ? selection.status : "Active",
+      category: "Other",
+      endDate: null,
+      description: "",
+    }
   );
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(
     task ?? {
       name: "",
       order: nextOrder,
       status: selection.kind === "newTask" ? selection.status : "Todo",
+      // A subtask is filed with its parent.
+      project: parent?.project ?? (selection.kind === "newTask" ? selection.project : GENERAL_PROJECT),
       dueDate: null,
       description: "",
       parentId,
@@ -120,7 +135,17 @@ export default function ActionableDetail({ selection, habits, tasks, nextOrder, 
     // Order comes from the item as it stands, not the draft, so a drag made
     // while the panel was open isn't undone by saving.
     if (habit) run(() => updateHabit(habit.id, { ...habitDraft, order: habit.order }), () => setSaved(true));
-    else if (task) run(() => updateTask(task.id, { ...taskDraft, order: task.order }), () => setSaved(true));
+    else if (task)
+      run(
+        () =>
+          updateTask(
+            task.id,
+            { ...taskDraft, order: task.order },
+            // Its subtasks follow it to a new project.
+            taskDraft.project !== task.project ? subtasks.map((s) => s.id) : []
+          ),
+        () => setSaved(true)
+      );
     else if (isHabit) run(() => addHabit(habitDraft), (r) => r.id && onSelect({ kind: "habit", id: r.id }));
     else run(() => addTask(taskDraft), (r) => r.id && onSelect({ kind: "task", id: r.id }));
   }
@@ -183,6 +208,23 @@ export default function ActionableDetail({ selection, habits, tasks, nextOrder, 
         <MetaRow label="Last edited">{existing ? formatTimestamp(existing.lastEditedTime) : "—"}</MetaRow>
         {isHabit ? (
           <>
+            <MetaRow label="Status">
+              <select
+                value={habitDraft.status}
+                onChange={(e) => {
+                  setHabitDraft((d) => ({ ...d, status: e.target.value as HabitStatus }));
+                  setSaved(false);
+                }}
+                className={`${inputCls} w-auto`}
+                style={{ borderLeft: `4px solid ${HABIT_STATUS_COLOR[habitDraft.status]}` }}
+              >
+                {HABIT_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </MetaRow>
             <MetaRow label="Category">
               <select
                 value={habitDraft.category}
@@ -221,6 +263,24 @@ export default function ActionableDetail({ selection, habits, tasks, nextOrder, 
                 onChange={(e) => setTask("dueDate", e.target.value || null)}
                 className={`${inputCls} w-auto`}
               />
+            </MetaRow>
+            <MetaRow label="Project">
+              {parent ? (
+                parent.project
+              ) : (
+                <select
+                  value={taskDraft.project}
+                  onChange={(e) => setTask("project", e.target.value)}
+                  className={`${inputCls} w-auto`}
+                >
+                  {/* Keeps a project that was deleted since the panel opened. */}
+                  {(projects.includes(taskDraft.project) ? projects : [...projects, taskDraft.project]).map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              )}
             </MetaRow>
             <MetaRow label="Status">
               <select
@@ -269,7 +329,7 @@ export default function ActionableDetail({ selection, habits, tasks, nextOrder, 
             </button>
           ))}
           <button
-            onClick={() => onSelect({ kind: "newTask", status: "Todo", parentId: task.id })}
+            onClick={() => onSelect({ kind: "newTask", status: "Todo", parentId: task.id, project: task.project })}
             className="font-mono text-xs px-2 py-1 rounded-full border border-dashed border-line text-ink-soft hover:border-ink-soft hover:text-ink cursor-pointer"
           >
             + Add subtask

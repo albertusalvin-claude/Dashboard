@@ -5,26 +5,34 @@ import { useRouter } from "next/navigation";
 import { moveActionables } from "../actions/actionables";
 import {
   CATEGORY_COLOR,
+  GENERAL_PROJECT,
+  HABIT_STATUSES,
   STATUS_COLOR,
   TASK_STATUSES,
   formatDate,
+  groupHabits,
   groupTasks,
   type Habit,
+  type HabitStatus,
+  type Projects,
   type Task,
   type TaskStatus,
 } from "../lib/actionables";
 import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
 import ActionableDetail, { type Selection } from "./ActionableDetail";
+import ProjectBar, { chipCls } from "./ProjectBar";
 
 type Props = {
   /** Null when the Notion database isn't configured. */
   habits: Habit[] | null;
   tasks: Task[] | null;
+  /** Empty when tasks aren't configured. */
+  projects: Projects;
   /** YYYY-MM-DD, from the server so it renders the same on both sides. */
   today: string;
 };
 
-type Move = { id: string; order: number; status?: TaskStatus };
+type Move = { id: string; order: number; status?: TaskStatus | HabitStatus };
 
 // The list's share of the width when the panel is open; the divider between
 // them can be dragged within these bounds. Remembered per browser.
@@ -104,12 +112,17 @@ function reordered(ids: string[], id: string, beforeId: string | null): string[]
   return rest;
 }
 
-export default function ActionablesTab({ habits: serverHabits, tasks: serverTasks, today }: Props) {
+export default function ActionablesTab({ habits: serverHabits, tasks: serverTasks, projects, today }: Props) {
   const router = useRouter();
   const isDummy = useIsDummyRoute();
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
+  // Null shows every project but the archived ones. One deleted elsewhere
+  // falls back to All.
+  const [chosenProject, setProject] = useState<string | null>(null);
+  const project = chosenProject !== null && projects.all.includes(chosenProject) ? chosenProject : null;
+  const isArchived = (p: string) => projects.archived.includes(p);
 
   // Local copies, so drags show immediately; reset whenever the server sends
   // fresh data.
@@ -142,8 +155,15 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
     storeSplit(next);
   }
 
-  const sortedHabits = [...habits].sort((a, b) => a.order - b.order);
-  const groups = groupTasks(tasks);
+  const habitGroups = groupHabits(habits);
+  // Which group of habits shows; Active to start with.
+  const [habitStatus, setHabitStatus] = useState<HabitStatus>("Active");
+  const allGroups = groupTasks(tasks);
+  const groups = groupTasks(tasks, (p) => (project === null ? !isArchived(p) : p === project));
+  const projectCounts: Record<string, number> = {};
+  for (const { task } of TASK_STATUSES.flatMap((s) => allGroups[s])) {
+    projectCounts[task.project] = (projectCounts[task.project] ?? 0) + 1;
+  }
   const nextHabitOrder = habits.reduce((max, h) => Math.max(max, h.order + 1), 0);
   const nextTaskOrder = tasks.reduce((max, t) => Math.max(max, t.order + 1), 0);
 
@@ -165,14 +185,17 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
     });
   }
 
-  function dropHabit(beforeId: string | null) {
+  // Like a task: on a group it goes to the end, on a habit just before it.
+  function dropHabit(status: HabitStatus, beforeId: string | null) {
     const dragged = dragging;
     endDrag();
     if (dragged?.kind !== "habit") return;
-    const ids = reordered(sortedHabits.map((h) => h.id), dragged.id, beforeId);
-    const moves = ids
-      .map((id, order) => ({ id, order }))
-      .filter(({ id, order }) => habits.find((h) => h.id === id)?.order !== order);
+    const moving = habits.find((h) => h.id === dragged.id);
+    if (!moving) return;
+    const ids = reordered(habitGroups[status].map((h) => h.id), dragged.id, beforeId);
+    const moves: Move[] = ids
+      .map((id, order) => ({ id, order, status: id === dragged.id && moving.status !== status ? status : undefined }))
+      .filter(({ id, order, status: changed }) => changed || habits.find((h) => h.id === id)?.order !== order);
     setHabits((current) => applyMoves(current, moves));
     persist(moves);
   }
@@ -185,7 +208,12 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
     if (dragged?.kind !== "task") return;
     const moving = tasks.find((t) => t.id === dragged.id);
     if (!moving) return;
-    const ids = reordered(groups[status].map((g) => g.task.id), dragged.id, beforeId);
+    // Order is shared across projects, so renumber the whole group. Dropped
+    // at the end of the list, it goes just after the last task showing.
+    const allIds = allGroups[status].map((g) => g.task.id).filter((id) => id !== dragged.id);
+    const shown = groups[status].map((g) => g.task.id).filter((id) => id !== dragged.id);
+    const before = beforeId ?? (shown.length ? (allIds[allIds.indexOf(shown[shown.length - 1]) + 1] ?? null) : null);
+    const ids = reordered(allIds, dragged.id, before);
     const moves: Move[] = ids
       .map((id, order) => ({ id, order, status: id === dragged.id && moving.status !== status ? status : undefined }))
       .filter(({ id, order, status: changed }) => changed || tasks.find((t) => t.id === id)?.order !== order);
@@ -263,7 +291,7 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
           title="Habits"
           action={
             serverHabits && (
-              <button onClick={() => setSelection({ kind: "newHabit" })} className={addCls}>
+              <button onClick={() => setSelection({ kind: "newHabit", status: habitStatus })} className={addCls}>
                 + Add habit
               </button>
             )
@@ -272,36 +300,67 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
         {!serverHabits ? (
           <NotConnected envVar="NOTION_HABITS_ID" />
         ) : (
-          <div {...listProps("habit", "habits", () => dropHabit(null))}>
-            {sortedHabits.length === 0 && <p className="text-sm text-ink-soft italic px-1 py-3">No habits yet.</p>}
-            {sortedHabits.map((habit) => {
-              const ended = habit.endDate !== null && habit.endDate < today;
-              return (
-                <div key={habit.id} {...cardProps("habit", habit.id, () => dropHabit(habit.id))}>
-                  <span className="w-2 h-2 mt-2 rounded-full shrink-0" style={{ background: CATEGORY_COLOR[habit.category] }} />
-                  <CardText
-                    name={habit.name}
-                    nameClass={ended ? "text-ink-soft" : "text-ink"}
-                    meta={
-                      <>
-                        <span
-                          className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full"
-                          style={{ color: CATEGORY_COLOR[habit.category], background: `${CATEGORY_COLOR[habit.category]}1F` }}
-                        >
-                          {habit.category}
-                        </span>
-                        {habit.endDate && (
-                          <span className="font-mono text-xs text-ink-soft">
-                            {ended ? "ended" : "until"} {formatDate(habit.endDate)}
+          <>
+            {/* One group at a time. A habit dropped on a chip moves there. */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-5">
+              {HABIT_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setHabitStatus(status)}
+                  onDragOver={(e) => {
+                    if (dragging?.kind !== "habit") return;
+                    e.preventDefault();
+                    setDropTarget(`chip:${status}`);
+                  }}
+                  onDragLeave={() => setDropTarget((t) => (t === `chip:${status}` ? null : t))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    dropHabit(status, null);
+                  }}
+                  className={`${chipCls(habitStatus === status)} ${
+                    dropTarget === `chip:${status}` ? "!border-[#CB3A1E] !text-[#CB3A1E]" : ""
+                  }`}
+                >
+                  {status} <span className="opacity-60">{habitGroups[status].length}</span>
+                </button>
+              ))}
+            </div>
+            <div {...listProps("habit", `habits:${habitStatus}`, () => dropHabit(habitStatus, null))}>
+              {habitGroups[habitStatus].length === 0 && (
+                <p className="text-sm text-ink-soft italic px-1 py-3">
+                  {habitStatus === "Active" ? "No habits yet." : `No ${habitStatus.toLowerCase()} habits.`}
+                </p>
+              )}
+              {habitGroups[habitStatus].map((habit) => {
+                const ended = habit.endDate !== null && habit.endDate < today;
+                const faded = ended || habitStatus === "Archived";
+                return (
+                  <div key={habit.id} {...cardProps("habit", habit.id, () => dropHabit(habitStatus, habit.id))}>
+                    <span className="w-2 h-2 mt-2 rounded-full shrink-0" style={{ background: CATEGORY_COLOR[habit.category] }} />
+                    <CardText
+                      name={habit.name}
+                      nameClass={faded ? "text-ink-soft" : "text-ink"}
+                      meta={
+                        <>
+                          <span
+                            className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full"
+                            style={{ color: CATEGORY_COLOR[habit.category], background: `${CATEGORY_COLOR[habit.category]}1F` }}
+                          >
+                            {habit.category}
                           </span>
-                        )}
-                      </>
-                    }
-                  />
-                </div>
-              );
-            })}
-          </div>
+                          {habit.endDate && (
+                            <span className="font-mono text-xs text-ink-soft">
+                              {ended ? "ended" : "until"} {formatDate(habit.endDate)}
+                            </span>
+                          )}
+                        </>
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </section>
 
@@ -311,6 +370,7 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
           <NotConnected envVar="NOTION_TASKS_ID" />
         ) : (
           <div className="space-y-6">
+            <ProjectBar projects={projects} counts={projectCounts} selected={project} onSelect={setProject} />
             {TASK_STATUSES.map((status) => (
               <div key={status}>
                 <div className="flex items-center justify-between gap-3 mb-2">
@@ -319,7 +379,7 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
                     {status}
                     <span className="font-mono text-xs font-normal text-ink-soft">{groups[status].length}</span>
                   </h3>
-                  <button onClick={() => setSelection({ kind: "newTask", status, parentId: null })} className={addCls}>
+                  <button onClick={() => setSelection({ kind: "newTask", status, parentId: null, project: project ?? GENERAL_PROJECT })} className={addCls}>
                     + Add
                   </button>
                 </div>
@@ -337,10 +397,20 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
                             name={task.name}
                             nameClass={task.status === "Done" ? "line-through text-ink-soft" : "text-ink"}
                             meta={
-                              task.dueDate && (
-                                <span className={`font-mono text-xs ${overdue ? "text-chili font-bold" : "text-ink-soft"}`}>
-                                  due {formatDate(task.dueDate)}
-                                </span>
+                              (task.dueDate || !project) && (
+                                <>
+                                  {/* Which project, when they're all showing. */}
+                                  {!project && (
+                                    <span className="font-mono text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border border-line text-ink-soft">
+                                      {task.project}
+                                    </span>
+                                  )}
+                                  {task.dueDate && (
+                                    <span className={`font-mono text-xs ${overdue ? "text-chili font-bold" : "text-ink-soft"}`}>
+                                      due {formatDate(task.dueDate)}
+                                    </span>
+                                  )}
+                                </>
                               )
                             }
                           />
@@ -373,10 +443,19 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
 
   // Remount the panel when it switches item, or when a drag changes the open
   // task's status, so its draft starts from what's saved.
-  const selectedTask = selection?.kind === "task" ? tasks.find((t) => t.id === selection.id) : undefined;
+  const selectedItem =
+    selection?.kind === "task"
+      ? tasks.find((t) => t.id === selection.id)
+      : selection?.kind === "habit"
+        ? habits.find((h) => h.id === selection.id)
+        : undefined;
   const panelKey = selection
-    ? `${selection.kind}:${"id" in selection ? selection.id : ""}:${selectedTask?.status ?? ""}:${
-        selection.kind === "newTask" ? `${selection.status}:${selection.parentId}` : ""
+    ? `${selection.kind}:${"id" in selection ? selection.id : ""}:${selectedItem?.status ?? ""}:${
+        selection.kind === "newTask"
+          ? `${selection.status}:${selection.parentId}:${selection.project}`
+          : selection.kind === "newHabit"
+            ? selection.status
+            : ""
       }`
     : "";
 
@@ -436,6 +515,7 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
               selection={selection}
               habits={habits}
               tasks={tasks}
+              projects={projects.all.filter((p) => !isArchived(p))}
               nextOrder={selection.kind === "newHabit" ? nextHabitOrder : nextTaskOrder}
               onSelect={setSelection}
             />
