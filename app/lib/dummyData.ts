@@ -13,6 +13,7 @@ import type { FieldOptions, Person } from "./getRelationships";
 import { DEFAULT_FI_ASSUMPTIONS, type FIAssumptions } from "./fiProjection";
 import { parseCostLines, parseSmoothieIngredients, type DishType, type Dish, type Smoothie } from "./dietMenu";
 import type { Habit, HabitCategory, HabitStatus, Task, TaskStatus } from "./actionables";
+import { blankReview, type Review } from "./reviews";
 
 // Stand-in data for the /dummy routes: enough in every tab to see the charts,
 // tables and forms populated without touching the real database, and without
@@ -206,6 +207,80 @@ export function dummySpending(): SpendingEntry[] {
     { id: "d-sp-6", item: "Weekly groceries", amount: 141.2, category: "Groceries", date: daysAgo(21), notes: "", paymentMethod: "Card", store: "Coles" },
     { id: "d-sp-7", item: "Phone plan", amount: 35, category: "Bills", date: daysAgo(28), notes: "Monthly", paymentMethod: "Direct debit", store: "Amaysim" },
     { id: "d-sp-8", item: "Badminton court", amount: 18, category: "Health", date: daysAgo(35), notes: "", paymentMethod: "Cash", store: "MSAC" },
+  ];
+}
+
+export function dummyReviews(): Review[] {
+  const review = (id: string, extra: Partial<Review>): Review => ({ ...blankReview(), id: `d-rv-${id}`, image: null, ...extra });
+  // Made-up pictures (a gradient and a letter), so the demo shows photos
+  // without any real ones.
+  const picture = (letter: string, from: string, to: string) => ({
+    name: `${letter}.svg`,
+    url: `data:image/svg+xml,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="160" height="90" fill="url(#g)"/><text x="80" y="58" font-family="sans-serif" font-size="36" font-weight="700" fill="#F6F7F0" text-anchor="middle">${letter}</text></svg>`
+    )}`,
+  });
+  return [
+    // Linked to the dummy Spending entries above, so the link shows.
+    review("shoes", {
+      name: "Running shoes",
+      type: "Item",
+      category: "Health",
+      rating: 8.5,
+      price: 189.95,
+      worthIt: true,
+      wouldPurchaseAgain: true,
+      date: daysAgo(8),
+      spendingId: "d-sp-3",
+      notes: "Comfortable from the first run; the grip on wet paths is the real win.",
+      image: picture("R", "#4E7043", "#1B3327"),
+    }),
+    review("dinner", {
+      name: "Birthday dinner",
+      type: "Experience",
+      category: "Eating Out",
+      rating: 6,
+      price: 64.5,
+      worthIt: false,
+      wouldPurchaseAgain: false,
+      date: daysAgo(14),
+      spendingId: "d-sp-5",
+      notes: "Good company, but the food was loud and the wait was long. Somewhere quieter next time.",
+    }),
+    review("badminton", {
+      name: "Badminton court",
+      type: "Experience",
+      category: "Health",
+      rating: 9,
+      price: 18,
+      worthIt: true,
+      wouldPurchaseAgain: true,
+      date: daysAgo(35),
+      spendingId: "d-sp-8",
+      image: picture("B", "#B4832A", "#CB3A1E"),
+    }),
+    review("kettle", {
+      name: "Gooseneck kettle with temperature control and a keep-warm setting for slow mornings",
+      type: "Item",
+      category: "Home",
+      rating: 4,
+      price: 129,
+      worthIt: false,
+      wouldPurchaseAgain: false,
+      date: daysAgo(50),
+      notes: "Lid rattles and the display died after two months.",
+    }),
+    review("gallery", {
+      name: "Gallery late night",
+      type: "Experience",
+      category: "Culture",
+      rating: 7.5,
+      price: 0,
+      worthIt: true,
+      wouldPurchaseAgain: true,
+      date: daysAgo(62),
+    }),
+    review("headphones", { name: "Gift headphones", type: "Item", category: "Tech", rating: null, price: null, notes: "A present — haven't tried them yet." }),
   ];
 }
 
