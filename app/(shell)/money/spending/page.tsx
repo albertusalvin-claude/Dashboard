@@ -1,14 +1,14 @@
 import SpendingTab from "../../../components/SpendingTab";
 import { getSpending } from "../../../lib/getSpending";
 import { getShoppingList } from "../../../lib/getShoppingList";
-import { getSpendingOptions } from "../../../lib/getSpendingOptions";
+import { getSpendingClassifications } from "../../../lib/getSpendingClassifications";
 import { getShoppingOptions } from "../../../lib/getShoppingOptions";
 
 export default async function SpendingPage() {
-  const [entries, shoppingItems, options, shoppingOptions] = await Promise.all([
+  const [entries, shoppingItems, classifications, shoppingOptions] = await Promise.all([
     getSpending(),
     getShoppingList(),
-    getSpendingOptions(),
+    getSpendingClassifications(),
     getShoppingOptions(),
   ]);
 
@@ -28,7 +28,7 @@ export default async function SpendingPage() {
   return (
     <SpendingTab
       entries={entries}
-      options={options}
+      classifications={classifications}
       shoppingItems={shoppingItems}
       shoppingOptions={shoppingOptions}
       monthSpend={monthSpend}

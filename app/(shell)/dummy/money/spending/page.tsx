@@ -4,7 +4,7 @@ import {
   dummyShoppingList,
   dummyShoppingOptions,
   dummySpending,
-  dummySpendingOptions,
+  dummySpendingClassifications,
 } from "../../../../lib/dummyData";
 
 export default async function DummySpendingPage() {
@@ -28,7 +28,7 @@ export default async function DummySpendingPage() {
   return (
     <SpendingTab
       entries={entries}
-      options={dummySpendingOptions()}
+      classifications={dummySpendingClassifications()}
       shoppingItems={dummyShoppingList()}
       shoppingOptions={dummyShoppingOptions()}
       monthSpend={monthSpend}

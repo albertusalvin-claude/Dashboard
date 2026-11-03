@@ -26,6 +26,7 @@ const purchase: SpendingEntry = {
   notes: "",
   paymentMethod: "Card",
   store: "Kathmandu",
+  project: "",
 };
 
 describe("linkSpending", () => {

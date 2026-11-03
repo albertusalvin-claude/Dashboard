@@ -9,6 +9,8 @@ export type SpendingEntry = {
   notes: string;
   paymentMethod: string;
   store: string;
+  /** From the Project select; empty when the entry isn't in one. */
+  project: string;
 };
 
 export async function GET() {
@@ -50,6 +52,7 @@ export async function GET() {
         notes: props.Notes?.rich_text?.[0]?.plain_text ?? "",
         paymentMethod: props["Payment Method"]?.select?.name ?? "",
         store: props.Store?.rich_text?.[0]?.plain_text ?? "",
+        project: props.Project?.select?.name ?? "",
       };
     })
     .filter((e: SpendingEntry) => e.date);

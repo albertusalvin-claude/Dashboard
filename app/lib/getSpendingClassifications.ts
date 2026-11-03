@@ -1,9 +1,10 @@
-export type SpendingOptions = {
+export type SpendingClassifications = {
   categories: string[];
   paymentMethods: string[];
+  projects: string[];
 };
 
-const EMPTY: SpendingOptions = { categories: [], paymentMethods: [] };
+const EMPTY: SpendingClassifications = { categories: [], paymentMethods: [], projects: [] };
 
 type NotionSelectSchema = { select?: { options?: { name: string }[] } };
 
@@ -12,7 +13,7 @@ type NotionSelectSchema = { select?: { options?: { name: string }[] } };
  * one request, so the edit form suggests the categories and stores in use
  * rather than inviting a second spelling of each.
  */
-export async function getSpendingOptions(): Promise<SpendingOptions> {
+export async function getSpendingClassifications(): Promise<SpendingClassifications> {
   const databaseId = process.env.NOTION_SPENDING_ID;
   const apiKey = process.env.NOTION_API_KEY;
 
@@ -37,5 +38,6 @@ export async function getSpendingOptions(): Promise<SpendingOptions> {
   return {
     categories: names("Category"),
     paymentMethods: names("Payment Method"),
+    projects: names("Project"),
   };
 }

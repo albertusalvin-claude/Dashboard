@@ -9,7 +9,7 @@ import {
   type SpendingDraft,
 } from "../actions/spending";
 import type { SpendingEntry } from "../api/spending/route";
-import type { SpendingOptions } from "../lib/getSpendingOptions";
+import type { SpendingClassifications } from "../lib/getSpendingClassifications";
 import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
 
 // This tab predates the paper/ink palette used elsewhere, so the form matches
@@ -27,6 +27,7 @@ const blankDraft = (): SpendingDraft => ({
   notes: "",
   paymentMethod: "",
   store: "",
+  project: "",
 });
 
 const draftFrom = (entry: SpendingEntry): SpendingDraft => ({
@@ -37,18 +38,19 @@ const draftFrom = (entry: SpendingEntry): SpendingDraft => ({
   notes: entry.notes,
   paymentMethod: entry.paymentMethod,
   store: entry.store,
+  project: entry.project,
 });
 
 type Props = {
   /** Omitted to add a new entry; supplied to edit an existing one. */
   entry?: SpendingEntry;
-  options: SpendingOptions;
+  classifications: SpendingClassifications;
   /** Store is free text in Notion, so its suggestions come from other entries. */
   storeSuggestions: string[];
   onClose: () => void;
 };
 
-export default function SpendingEntryForm({ entry, options, storeSuggestions, onClose }: Props) {
+export default function SpendingEntryForm({ entry, classifications, storeSuggestions, onClose }: Props) {
   const router = useRouter();
   const id = useId();
   const isDummy = useIsDummyRoute();
@@ -101,7 +103,7 @@ export default function SpendingEntryForm({ entry, options, storeSuggestions, on
 
   // Free text with suggestions, matching how the asset logs handle Selects:
   // Notion creates a new option on first use, so this is a hint, not a limit.
-  const suggest = (field: "category" | "paymentMethod" | "store", list: string[]) => (
+  const suggest = (field: "category" | "paymentMethod" | "store" | "project", list: string[]) => (
     <>
       <input
         className={inputCls}
@@ -141,7 +143,7 @@ export default function SpendingEntryForm({ entry, options, storeSuggestions, on
 
         <label className="block">
           <span className="text-xs text-gray-400">Category</span>
-          {suggest("category", options.categories)}
+          {suggest("category", classifications.categories)}
         </label>
 
         <label className="block">
@@ -151,7 +153,7 @@ export default function SpendingEntryForm({ entry, options, storeSuggestions, on
 
         <label className="block">
           <span className="text-xs text-gray-400">Payment method</span>
-          {suggest("paymentMethod", options.paymentMethods)}
+          {suggest("paymentMethod", classifications.paymentMethods)}
         </label>
 
         <label className="block">
@@ -159,7 +161,12 @@ export default function SpendingEntryForm({ entry, options, storeSuggestions, on
           {suggest("store", storeSuggestions)}
         </label>
 
-        <label className="block sm:col-span-2">
+        <label className="block">
+          <span className="text-xs text-gray-400">Project</span>
+          {suggest("project", classifications.projects)}
+        </label>
+
+        <label className="block">
           <span className="text-xs text-gray-400">Notes</span>
           <input className={inputCls} value={draft.notes} onChange={(e) => set("notes", e.target.value)} />
         </label>

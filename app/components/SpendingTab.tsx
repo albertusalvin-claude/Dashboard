@@ -5,14 +5,16 @@ import SpendingEntryForm from "./SpendingEntryForm";
 import SpendingTimeline from "./SpendingTimeline";
 import ShoppingList from "./ShoppingList";
 import SpendingBreakdown from "./SpendingBreakdown";
+import { chipCls } from "./ProjectBar";
+import { GENERAL, inProject, isGeneral, spendingProjects } from "../lib/spending";
 import type { SpendingEntry } from "../api/spending/route";
 import type { ShoppingItem } from "../lib/getShoppingList";
-import type { SpendingOptions } from "../lib/getSpendingOptions";
+import type { SpendingClassifications } from "../lib/getSpendingClassifications";
 import type { ShoppingOptions } from "../lib/getShoppingOptions";
 
 type Props = {
   entries: SpendingEntry[];
-  options: SpendingOptions;
+  classifications: SpendingClassifications;
   shoppingOptions: ShoppingOptions;
   shoppingItems: ShoppingItem[];
   monthSpend: number;
@@ -22,18 +24,28 @@ type Props = {
 
 export default function SpendingTab({
   entries,
-  options,
+  classifications,
   shoppingItems,
   shoppingOptions,
   monthSpend,
   totalSpend,
   topCategory,
 }: Props) {
-  const oneOff = entries.filter((e) => e.category !== "Groceries");
   const [adding, setAdding] = useState(false);
+  // Null is All. The chips narrow everything in the Spending section.
+  const [project, setProject] = useState<string | null>(null);
 
-  // Suggestions for the free-text Store field, drawn from every entry rather
-  // than just the one-off ones shown in the timeline.
+  // The reason why we have deduped union of options and projects is because some of the options are empty(newly created)
+  // We still want to show those newly created options regardless.
+  const projects = spendingProjects(classifications.projects, entries);
+  const hasGeneral = entries.some((e) => isGeneral(e.project));
+  const toShow = entries.filter((e) => inProject(e, project));
+
+  // With one project picked, slicing by project would be a single slice.
+  const canSliceByProject = projects.length > 0 && project === null;
+
+  // Suggestions for the free-text Store field, from every entry, not just
+  // the project picked.
   const storeSuggestions = [...new Set(entries.map((e) => e.store).filter(Boolean))].sort();
 
   const stats = [
@@ -54,10 +66,9 @@ export default function SpendingTab({
         ))}
       </div>
 
-      {/* One-off Spending */}
       <div className="bg-card rounded-2xl border border-line p-5 space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-display font-bold text-lg text-ink">One-off Spending</h3>
+          <h3 className="font-display font-bold text-lg text-ink">Spending</h3>
           <button
             onClick={() => setAdding((open) => !open)}
             className="font-mono text-xs px-3 py-1.5 rounded-full border border-line text-ink-soft hover:border-ink-soft hover:text-ink transition-colors cursor-pointer"
@@ -68,18 +79,23 @@ export default function SpendingTab({
 
         {adding && (
           <SpendingEntryForm
-            options={options}
+            classifications={classifications}
             storeSuggestions={storeSuggestions}
             onClose={() => setAdding(false)}
           />
         )}
 
-        <SpendingBreakdown
-          entries={oneOff}
-          title="One-off Spending"
-          pieKey={(e) => e.category}
-          pieLabel="category"
-        />
+        {projects.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[null, ...projects, ...(hasGeneral ? [GENERAL] : [])].map((p) => (
+              <button key={p ?? "All"} onClick={() => setProject(p)} className={chipCls(project === p)}>
+                {p ?? "All"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <SpendingBreakdown entries={toShow} title="Spending" canSliceByProject={canSliceByProject} />
         <details className="group">
           <summary className="cursor-pointer list-none flex items-center justify-between py-2 select-none border-t border-line pt-4">
             <span className="font-mono text-xs text-ink-soft uppercase tracking-wide">Timeline</span>
@@ -87,7 +103,7 @@ export default function SpendingTab({
             <span className="font-mono text-xs text-ink-soft hidden group-open:inline">Hide ▴</span>
           </summary>
           <div className="mt-3">
-            <SpendingTimeline entries={oneOff} options={options} storeSuggestions={storeSuggestions} />
+            <SpendingTimeline entries={toShow} classifications={classifications} storeSuggestions={storeSuggestions} />
           </div>
         </details>
       </div>

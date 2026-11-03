@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isGeneral, spendingProjectError } from "../lib/spending";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -12,12 +13,10 @@ export type SpendingDraft = {
   notes: string;
   paymentMethod: string;
   store: string;
+  project: string;
 };
 
-// The same properties getSpending() reads, written back in the same shapes:
-// Item is the title, Category and Payment Method are Selects, and Store and
-// Notes are plain text. Notion auto-creates a Select option the first time it
-// sees a new name, so a new category needs no separate step.
+// Cleaning up raw property values of spending entry
 function propertiesFor(draft: SpendingDraft, dateStart: string): Record<string, unknown> {
   return {
     Item: { title: draft.item.trim() ? [{ text: { content: draft.item.trim() } }] : [] },
@@ -27,6 +26,8 @@ function propertiesFor(draft: SpendingDraft, dateStart: string): Record<string, 
     Notes: { rich_text: draft.notes.trim() ? [{ text: { content: draft.notes.trim() } }] : [] },
     "Payment Method": { select: draft.paymentMethod.trim() ? { name: draft.paymentMethod.trim() } : null },
     Store: { rich_text: draft.store.trim() ? [{ text: { content: draft.store.trim() } }] : [] },
+    // General means no project, so typing it doesn't add a General option.
+    Project: { select: isGeneral(draft.project) ? null : { name: draft.project.trim() } },
   };
 }
 
@@ -59,7 +60,7 @@ function validate(draft: SpendingDraft): string | null {
   if (!draft.item.trim()) return "An item name is required.";
   if (!Number.isFinite(draft.amount)) return "Amount must be a number.";
   if (!draft.date) return "A date is required.";
-  return null;
+  return spendingProjectError(draft.project);
 }
 
 /**

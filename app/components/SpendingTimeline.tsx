@@ -3,7 +3,8 @@
 import { useState } from "react";
 import SpendingEntryForm from "./SpendingEntryForm";
 import type { SpendingEntry } from "../api/spending/route";
-import type { SpendingOptions } from "../lib/getSpendingOptions";
+import type { SpendingClassifications } from "../lib/getSpendingClassifications";
+import { isGeneral } from "../lib/spending";
 
 const CATEGORY_COLORS: Record<string, string> = {
   Health: "bg-red-100 text-red-700",
@@ -28,9 +29,9 @@ function formatDate(dateStr: string) {
   });
 }
 
-type Props = { entries: SpendingEntry[]; options: SpendingOptions; storeSuggestions: string[] };
+type Props = { entries: SpendingEntry[]; classifications: SpendingClassifications; storeSuggestions: string[] };
 
-export default function SpendingTimeline({ entries, options, storeSuggestions }: Props) {
+export default function SpendingTimeline({ entries, classifications, storeSuggestions }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Group by date
@@ -62,7 +63,7 @@ export default function SpendingTimeline({ entries, options, storeSuggestions }:
                   <SpendingEntryForm
                     key={entry.id}
                     entry={entry}
-                    options={options}
+                    classifications={classifications}
                     storeSuggestions={storeSuggestions}
                     onClose={() => setEditingId(null)}
                   />
@@ -79,6 +80,11 @@ export default function SpendingTimeline({ entries, options, storeSuggestions }:
                         >
                           {entry.category}
                         </span>
+                        {!isGeneral(entry.project) && (
+                          <span className="text-xs px-2 py-0.5 rounded-full border border-gray-200 text-gray-500">
+                            {entry.project}
+                          </span>
+                        )}
                       </div>
                       {entry.notes && <p className="text-xs text-gray-400 mt-1 truncate">{entry.notes}</p>}
                       {entry.paymentMethod && (

@@ -35,6 +35,7 @@ export async function getSpending(): Promise<SpendingEntry[]> {
         notes: props.Notes?.rich_text?.[0]?.plain_text ?? "",
         paymentMethod: props["Payment Method"]?.select?.name ?? "",
         store: props.Store?.rich_text?.[0]?.plain_text ?? "",
+        project: props.Project?.select?.name ?? "",
       };
     })
     .filter((e: SpendingEntry) => e.date);

@@ -5,7 +5,7 @@ import type { SuperannuationLogEntry } from "./getSuperannuationLog";
 import type { StockOptionsLogEntry } from "./getStockOptionsLog";
 import type { SpendingEntry } from "../api/spending/route";
 import type { ShoppingItem } from "./getShoppingList";
-import type { SpendingOptions } from "./getSpendingOptions";
+import type { SpendingClassifications } from "./getSpendingClassifications";
 import type { ShoppingOptions } from "./getShoppingOptions";
 import type { WeightEntry } from "./getWeightLog";
 import type { BPEntry } from "./getBPLog";
@@ -199,14 +199,19 @@ export const DUMMY_LOG_OPTIONS = {
 
 export function dummySpending(): SpendingEntry[] {
   return [
-    { id: "d-sp-1", item: "Weekly groceries", amount: 128.4, category: "Groceries", date: daysAgo(2), notes: "", paymentMethod: "Card", store: "Woolworths" },
-    { id: "d-sp-2", item: "Coffee beans", amount: 22, category: "Groceries", date: daysAgo(5), notes: "1kg", paymentMethod: "Card", store: "Market Lane" },
-    { id: "d-sp-3", item: "Running shoes", amount: 189.95, category: "Health", date: daysAgo(8), notes: "", paymentMethod: "Card", store: "The Athlete's Foot" },
-    { id: "d-sp-4", item: "Train myki top-up", amount: 40, category: "Transport", date: daysAgo(11), notes: "", paymentMethod: "Card", store: "PTV" },
-    { id: "d-sp-5", item: "Dinner with friends", amount: 64.5, category: "Eating Out", date: daysAgo(14), notes: "Birthday", paymentMethod: "Card", store: "Chin Chin" },
-    { id: "d-sp-6", item: "Weekly groceries", amount: 141.2, category: "Groceries", date: daysAgo(21), notes: "", paymentMethod: "Card", store: "Coles" },
-    { id: "d-sp-7", item: "Phone plan", amount: 35, category: "Bills", date: daysAgo(28), notes: "Monthly", paymentMethod: "Direct debit", store: "Amaysim" },
-    { id: "d-sp-8", item: "Badminton court", amount: 18, category: "Health", date: daysAgo(35), notes: "", paymentMethod: "Cash", store: "MSAC" },
+    { id: "d-sp-1", item: "Weekly groceries", amount: 128.4, category: "Groceries", date: daysAgo(2), notes: "", paymentMethod: "Card", store: "Woolworths", project: "" },
+    { id: "d-sp-2", item: "Coffee beans", amount: 22, category: "Groceries", date: daysAgo(5), notes: "1kg", paymentMethod: "Card", store: "Market Lane", project: "" },
+    { id: "d-sp-3", item: "Running shoes", amount: 189.95, category: "Health", date: daysAgo(8), notes: "", paymentMethod: "Card", store: "The Athlete's Foot", project: "" },
+    { id: "d-sp-4", item: "Train myki top-up", amount: 40, category: "Transport", date: daysAgo(11), notes: "", paymentMethod: "Card", store: "PTV", project: "" },
+    { id: "d-sp-5", item: "Dinner with friends", amount: 64.5, category: "Eating Out", date: daysAgo(14), notes: "Birthday", paymentMethod: "Card", store: "Chin Chin", project: "" },
+    { id: "d-sp-6", item: "Weekly groceries", amount: 141.2, category: "Groceries", date: daysAgo(21), notes: "", paymentMethod: "Card", store: "Coles", project: "" },
+    { id: "d-sp-7", item: "Phone plan", amount: 35, category: "Bills", date: daysAgo(28), notes: "Monthly", paymentMethod: "Direct debit", store: "Amaysim", project: "" },
+    { id: "d-sp-8", item: "Badminton court", amount: 18, category: "Health", date: daysAgo(35), notes: "", paymentMethod: "Cash", store: "MSAC", project: "" },
+    // Made-up projects, so the chips and By project pie have something to show.
+    { id: "d-sp-9", item: "Two-person tent", amount: 249, category: "Outdoors", date: daysAgo(9), notes: "", paymentMethod: "Card", store: "Anaconda", project: "Camping trip" },
+    { id: "d-sp-10", item: "Campsite booking", amount: 56, category: "Travel", date: daysAgo(16), notes: "Two nights", paymentMethod: "Card", store: "Parks Victoria", project: "Camping trip" },
+    { id: "d-sp-11", item: "Desk lamp", amount: 45, category: "Home", date: daysAgo(19), notes: "", paymentMethod: "Card", store: "Kmart", project: "Home office" },
+    { id: "d-sp-12", item: "Monitor arm", amount: 89, category: "Home", date: daysAgo(40), notes: "", paymentMethod: "Card", store: "Officeworks", project: "Home office" },
   ];
 }
 
@@ -289,12 +294,13 @@ export function dummyReviews(): Review[] {
   ];
 }
 
-export function dummySpendingOptions(): SpendingOptions {
+export function dummySpendingClassifications(): SpendingClassifications {
   const entries = dummySpending();
   const unique = (values: string[]) => [...new Set(values.filter(Boolean))].sort();
   return {
     categories: unique(entries.map((e) => e.category)),
     paymentMethods: unique(entries.map((e) => e.paymentMethod)),
+    projects: unique(entries.map((e) => e.project)),
   };
 }
 

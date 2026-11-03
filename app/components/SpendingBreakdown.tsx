@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   PieChart,
   Pie,
@@ -14,6 +15,7 @@ import {
   Legend,
 } from "recharts";
 import type { SpendingEntry } from "../api/spending/route";
+import { projectOf } from "../lib/spending";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -22,6 +24,11 @@ const PALETTE = [
   "#7B9E6F", "#7A6EB4", "#D4A84B", "#E06B56",
 ];
 
+const toggleCls = (active: boolean) =>
+  `text-xs font-mono uppercase tracking-wide transition-colors cursor-pointer ${
+    active ? "text-ink underline underline-offset-4" : "text-ink-soft hover:text-ink"
+  }`;
+
 function toDollars(v: number) {
   return `$${v.toFixed(2)}`;
 }
@@ -29,14 +36,19 @@ function toDollars(v: number) {
 type Props = {
   entries: SpendingEntry[];
   title: string;
-  pieKey: (e: SpendingEntry) => string;
-  pieLabel: string;
+  /** Lets the pie switch between By category and By project. */
+  canSliceByProject: boolean;
 };
 
-export default function SpendingBreakdown({ entries, title, pieKey, pieLabel }: Props) {
+export default function SpendingBreakdown({ entries, title, canSliceByProject }: Props) {
+  const [byProject, setByProject] = useState(false);
+  // canSliceByProject is true when All mode is picked
+  // Otherwise when one project is being picked, then set to false
+  const showProject = byProject && canSliceByProject;
+
   const pieMap: Record<string, number> = {};
   for (const e of entries) {
-    const key = pieKey(e) || "Other";
+    const key = (showProject ? projectOf(e) : e.category) || "Other";
     pieMap[key] = (pieMap[key] ?? 0) + e.amount;
   }
   const pieData = Object.entries(pieMap)
@@ -65,7 +77,18 @@ export default function SpendingBreakdown({ entries, title, pieKey, pieLabel }: 
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <p className="text-xs font-mono text-ink-soft uppercase tracking-wide mb-3">By {pieLabel}</p>
+          {canSliceByProject ? (
+            <div className="flex items-center gap-3 mb-3">
+              <button onClick={() => setByProject(false)} aria-pressed={!showProject} className={toggleCls(!showProject)}>
+                By category
+              </button>
+              <button onClick={() => setByProject(true)} aria-pressed={showProject} className={toggleCls(showProject)}>
+                By project
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs font-mono text-ink-soft uppercase tracking-wide mb-3">By category</p>
+          )}
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
