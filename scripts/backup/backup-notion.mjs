@@ -6,15 +6,23 @@
 //                     restore from or diff against another day
 //     tasks.csv       the same rows flattened, to open in Excel
 //     …one pair per database
-//     manifest.json   when it ran, and each database's row count or error
+//     manifest.json   when it ran, what kind of backup, and each database's
+//                     row count or error
 //
 //   node --env-file=.env.local scripts/backup/backup-notion.mjs
 //   node --env-file=.env.local scripts/backup/backup-notion.mjs --out "D:\Somewhere else"
 //
+// With --everything it backs up every page and database the key's
+// integration can see instead, page content and uploaded files included —
+// for a whole account (see workspace.mjs). It needs its own --out or
+// NOTION_BACKUP_DIR:
+//
+//   node --env-file=.env.other scripts/backup/backup-notion.mjs --everything
+//
 // <out> defaults to OneDrive\Backups\Notion: outside this repo, and synced
-// off the machine. Only reads from Notion. Prints database names and row
-// counts, never data or the key. Exits 1 if anything failed, so a scheduled
-// run shows it.
+// off the machine. Only reads from Notion. Prints names and row counts,
+// never data or the key. Exits 1 if anything failed, so a scheduled run
+// shows it.
 // Caveat: Will override the earlier run on the same day due to the naming convention
 
 import { createBackupWriter } from "./backup-writer.mjs";
@@ -22,26 +30,30 @@ import { readConfig } from "./config.mjs";
 import { columnsOf, toCsv } from "./format.mjs";
 import { assertNotTrackedByGit } from "./git-guard.mjs";
 import { notionClient } from "./notion.mjs";
+import { backUpWorkspace } from "./workspace.mjs";
 
 async function main() {
-  const { apiKey, outRoot, databases } = readConfig(process.env, process.argv.slice(2));
+  const { mode, apiKey, outRoot, databases } = readConfig(process.env, process.argv.slice(2));
   assertNotTrackedByGit(outRoot);
 
   const notion = notionClient(apiKey);
-  const backupWriter = await createBackupWriter(outRoot);
-  console.log(`Backing up ${databases.length} databases to ${backupWriter.finalDir}`);
+  const backupWriter = await createBackupWriter(outRoot, { kind: mode });
+  console.log(`Backing up ${mode === "everything" ? "everything shared with the integration" : `${databases.length} databases`} to ${backupWriter.finalDir}`);
 
-  const results = [];
-  for (const db of databases) {
-    results.push(await backUpDatabase(notion, backupWriter, db));
-  }
+  const results =
+    mode === "everything" ? await backUpWorkspace(notion, backupWriter) : await backUpDatabases(notion, backupWriter, databases);
 
-  await backupWriter.writeJson("manifest.json", { takenAt: new Date().toISOString(), databases: results });
-  await backupWriter.commit();
+  await backupWriter.commit(results);
 
   const failed = results.filter((r) => r.error).length;
   console.log(failed ? `Done, but ${failed} failed — see above.` : "Done.");
   return failed ? 1 : 0;
+}
+
+async function backUpDatabases(notion, backupWriter, databases) {
+  const results = [];
+  for (const db of databases) results.push(await backUpDatabase(notion, backupWriter, db));
+  return results;
 }
 
 /** Saves one database as JSON and CSV. A failure is reported, not thrown, so the rest still run. */

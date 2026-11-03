@@ -19,19 +19,35 @@ describe("createBackupWriter", () => {
   it("only shows the dated folder once committed, replacing that day's earlier one", async () => {
     root = await mkdtemp(path.join(tmpdir(), "backup-writer-test-"));
 
-    const first = await createBackupWriter(root, "2026-01-01");
+    const first = await createBackupWriter(root, { kind: "databases", date: "2026-01-01" });
     await first.writeFile("a.csv", "old");
     await first.writeFile("stale.csv", "gone after the rerun");
-    await first.commit();
+    await first.commit([]);
 
-    const second = await createBackupWriter(root, "2026-01-01");
+    const second = await createBackupWriter(root, { kind: "databases", date: "2026-01-01" });
     await second.writeFile("a.csv", "new");
     expect(readFileSync(path.join(root, "2026-01-01", "a.csv"), "utf8")).toBe("old"); // Not committed yet.
-    await second.commit();
+    await second.commit([]);
 
     expect(await readdir(root)).toEqual(["2026-01-01"]);
-    expect(await readdir(path.join(root, "2026-01-01"))).toEqual(["a.csv"]);
+    expect(await readdir(path.join(root, "2026-01-01"))).toEqual(["a.csv", "manifest.json"]);
     expect(readFileSync(path.join(root, "2026-01-01", "a.csv"), "utf8")).toBe("new");
     expect(existsSync(path.join(root, "2026-01-01.incomplete"))).toBe(false);
+  });
+
+  it("won't replace a day's backup with a different kind", async () => {
+    root = await mkdtemp(path.join(tmpdir(), "backup-writer-test-"));
+    await (await createBackupWriter(root, { kind: "databases", date: "2026-01-01" })).commit([]);
+    await expect(createBackupWriter(root, { kind: "everything", date: "2026-01-01" })).rejects.toThrow(/already holds a "databases" backup/);
+    // Nothing was started, so there's nothing half-written left behind.
+    expect(await readdir(root)).toEqual(["2026-01-01"]);
+  });
+
+  it("creates subfolders as files are written into them", async () => {
+    root = await mkdtemp(path.join(tmpdir(), "backup-writer-test-"));
+    const backupWriter = await createBackupWriter(root, { kind: "databases", date: "2026-01-01" });
+    await backupWriter.writeFile("pages/a.json", "{}");
+    await backupWriter.commit([]);
+    expect(readFileSync(path.join(root, "2026-01-01", "pages", "a.json"), "utf8")).toBe("{}");
   });
 });

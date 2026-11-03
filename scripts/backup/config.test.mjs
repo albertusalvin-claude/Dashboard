@@ -26,6 +26,13 @@ describe("readConfig", () => {
     expect(readConfig({ ...env, NOTION_BACKUP_DIR: "/env" }, []).outRoot).toBe(path.resolve("/env"));
   });
 
+  it("--everything backs up the whole account, but only into a folder of its own", () => {
+    const config = readConfig({ NOTION_API_KEY: "k", NOTION_BACKUP_DIR: "/other" }, ["--everything"]);
+    expect(config.mode).toBe("everything");
+    expect(config.outRoot).toBe(path.resolve("/other"));
+    expect(() => readConfig({ NOTION_API_KEY: "k" }, ["--everything"])).toThrow(/its own folder/);
+  });
+
   it("needs a key and at least one database", () => {
     expect(() => readConfig({ NOTION_TASKS_ID: "t1" }, [])).toThrow(/NOTION_API_KEY/);
     expect(() => readConfig({ NOTION_API_KEY: "k" }, [])).toThrow(/nothing to back up/);

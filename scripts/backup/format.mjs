@@ -1,7 +1,49 @@
-// Turns Notion rows into a CSV for reading in Excel. The JSON beside it keeps
-// the full detail; this is the readable copy.
+// Turns Notion data into files: CSVs for reading in Excel (the JSON beside
+// each keeps the full detail), and names that are safe on Windows.
 
 const text = (rich) => (rich ?? []).map((t) => t.plain_text).join("");
+
+/** A page's or database's title, as plain text. */
+export function titleOf(item) {
+  if (item.object === "database") return text(item.title);
+  const titleProp = Object.values(item.properties ?? {}).find((p) => p.type === "title");
+  return text(titleProp?.title);
+}
+
+// Characters Windows doesn't allow in file names.
+const safe = (name) =>
+  name
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .replace(/[. ]+$/, "")
+    .trim();
+
+/**
+ * "Travel plans-1a2b3c4d": the title, cut short, plus the start of the id so
+ * two pages with the same title don't overwrite each other.
+ */
+export function fileNameFor(title, id) {
+  return `${safe(title).slice(0, 60).trim() || "Untitled"}-${id.replace(/-/g, "").slice(0, 8)}`;
+}
+
+/**
+ * Every file uploaded to Notion inside `value` (images, attachments, covers,
+ * files columns), with the id of the page or block it belongs to. Notion's
+ * links to them expire within the hour, so they have to be downloaded during
+ * the backup. Links to outside sites aren't included.
+ */
+export function hostedFiles(value, ownerId = null, found = []) {
+  if (Array.isArray(value)) {
+    for (const item of value) hostedFiles(item, ownerId, found);
+  } else if (value && typeof value === "object") {
+    const owner = ["page", "block", "database"].includes(value.object) ? value.id : ownerId;
+    if (value.type === "file" && value.file?.url) {
+      const fromUrl = decodeURIComponent(new URL(value.file.url).pathname.split("/").pop() ?? "");
+      found.push({ ownerId: owner, url: value.file.url, name: safe(value.name || fromUrl) || "file" });
+    }
+    for (const child of Object.values(value)) hostedFiles(child, owner, found);
+  }
+  return found;
+}
 
 /** One property's value as a CSV cell. */
 export function flatten(prop) {

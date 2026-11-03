@@ -27,21 +27,25 @@ function camelCase(snake) {
 }
 
 /**
- * The key, where snapshots go (--out, else NOTION_BACKUP_DIR, else
- * OneDrive\Backups\Notion) and which databases. Throws if there's nothing
- * to run with.
+ * The key, where backups go (--out, else NOTION_BACKUP_DIR, else
+ * OneDrive\Backups\Notion) and what to back up: the NOTION_*_ID databases,
+ * or with --everything, all the integration can see. Throws if there's
+ * nothing to run with.
  */
 export function readConfig(env, argv) {
   if (!env.NOTION_API_KEY) {
     throw new Error("NOTION_API_KEY isn't set. Run with: node --env-file=.env.local scripts/backup/backup-notion.mjs");
   }
-  const databases = databasesFromEnv(env);
-  if (databases.length === 0) throw new Error("No NOTION_*_ID variables found — nothing to back up.");
+  const out = argv.includes("--out") ? argv[argv.indexOf("--out") + 1] : (env.NOTION_BACKUP_DIR ?? undefined);
 
-  const out = argv.includes("--out") ? argv[argv.indexOf("--out") + 1] : undefined;
-  return {
-    apiKey: env.NOTION_API_KEY,
-    outRoot: path.resolve(out ?? env.NOTION_BACKUP_DIR ?? DEFAULT_OUT),
-    databases,
-  };
+  if (argv.includes("--everything")) {
+    // A day's backup replaces that day's folder, so two accounts sharing the
+    // default would overwrite each other.
+    if (!out) throw new Error("--everything needs its own folder: pass --out or set NOTION_BACKUP_DIR.");
+    return { mode: "everything", apiKey: env.NOTION_API_KEY, outRoot: path.resolve(out), databases: [] };
+  }
+
+  const databases = databasesFromEnv(env);
+  if (databases.length === 0) throw new Error("No NOTION_*_ID variables found — nothing to back up. (For a whole account, use --everything.)");
+  return { mode: "databases", apiKey: env.NOTION_API_KEY, outRoot: path.resolve(out ?? DEFAULT_OUT), databases };
 }
