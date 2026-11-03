@@ -34,6 +34,8 @@ function propertiesFor(draft: ReviewDraft): Record<string, unknown> {
     Date: { date: draft.date ? { start: draft.date } : null },
     "Spending entry": { relation: draft.spendingId ? [{ id: draft.spendingId }] : [] },
     Notes: richText(draft.notes),
+    // A tag Notion hasn't seen before becomes a new option on the column.
+    Tags: { multi_select: draft.tags.map((name) => ({ name })) },
   };
 }
 

@@ -3,13 +3,16 @@ import type { SpendingEntry } from "../api/spending/route";
 import { fitWithin } from "./shrinkPhoto";
 import {
   blankReview,
+  cleanTag,
   filterReviews,
   linkSpending,
   reviewCategories,
   reviewError,
   reviewTypeFrom,
-  summarizeReviews,
+  isFiltering,
+  NO_FILTER,
   type Review,
+  type ReviewFilter,
 } from "./reviews";
 
 const review = (id: string, extra: Partial<Review> = {}): Review => ({ ...blankReview(), id, name: id, image: null, ...extra });
@@ -48,6 +51,20 @@ describe("linkSpending", () => {
   });
 });
 
+describe("cleanTag", () => {
+  it("tidies a typed tag and reuses an existing one's spelling", () => {
+    expect(cleanTag("  date   night ", [])).toBe("date night");
+    expect(cleanTag("GIFT", ["Gift", "Travel"])).toBe("Gift");
+    expect(cleanTag("New one", ["Gift"])).toBe("New one");
+  });
+
+  it("refuses what Notion won't store", () => {
+    expect(cleanTag("   ", [])).toBeNull();
+    expect(cleanTag("a, b", [])).toBeNull();
+    expect(cleanTag("x".repeat(101), [])).toBeNull();
+  });
+});
+
 describe("reviewError", () => {
   it("needs a name and keeps the rating within 0–10", () => {
     expect(reviewError({ ...blankReview(), name: " " })).toMatch(/name/);
@@ -55,48 +72,58 @@ describe("reviewError", () => {
     expect(reviewError({ ...blankReview(), name: "x", rating: -1 })).toMatch(/between 0 and 10/);
     expect(reviewError({ ...blankReview(), name: "x", rating: 0, price: 0 })).toBeNull();
     expect(reviewError({ ...blankReview(), name: "x", price: -5 })).toMatch(/negative/);
+    expect(reviewError({ ...blankReview(), name: "x", tags: ["ok", "a,b"] })).toMatch(/Tags/);
   });
 });
 
 describe("filterReviews", () => {
-  it("filters by type and category, newest first with undated ones last", () => {
-    const reviews = [
-      review("old", { date: "2026-01-01", type: "Experience", category: "Food" }),
-      review("undated", { type: "Experience", category: "Food" }),
-      review("new", { date: "2026-02-01", type: "Experience", category: "Food" }),
-      review("item", { date: "2026-03-01", type: "Item", category: "Food" }),
-      review("travel", { date: "2026-03-01", type: "Experience", category: "Travel" }),
-    ];
-    expect(filterReviews(reviews, { type: "Experience", category: "Food" }).map((r) => r.id)).toEqual(["new", "old", "undated"]);
-    expect(filterReviews(reviews, { type: null, category: null })).toHaveLength(5);
-  });
-});
+  const reviews = [
+    review("old", { date: "2026-01-01", type: "Experience", category: "Food", rating: 9, price: 40, worthIt: true }),
+    review("undated", { type: "Experience", category: "Food", rating: null, price: null }),
+    review("new", { date: "2026-02-01", type: "Experience", category: "Food", rating: 5, price: 120, notes: "Too loud" }),
+    review("item", { date: "2026-03-01", type: "Item", category: "Tech", rating: 7, price: 300, wouldPurchaseAgain: true }),
+  ];
+  const ids = (filter: Partial<ReviewFilter>, searchAlso?: (r: Review) => string) =>
+    filterReviews(reviews, { ...NO_FILTER, ...filter }, searchAlso).map((r) => r.id);
 
-describe("summarizeReviews", () => {
-  it("averages the rated ones and sums what was paid for the ones not worth it", () => {
-    const summary = summarizeReviews([
-      review("a", { rating: 9, price: 50, worthIt: true, wouldPurchaseAgain: true }),
-      review("b", { rating: 4, price: 200, worthIt: false }),
-      review("c", { rating: null, price: null, worthIt: false }),
-      review("d", { rating: 8, price: 30, worthIt: true, wouldPurchaseAgain: true }),
-    ]);
-    expect(summary).toEqual({
-      count: 4,
-      averageRating: 7,
-      worthItShare: 0.5,
-      wouldPurchaseAgainShare: 0.5,
-      notWorthItSpend: 200,
-    });
+  it("shows everything newest first with nothing set, undated ones last", () => {
+    expect(ids({})).toEqual(["item", "new", "old", "undated"]);
   });
 
-  it("has no averages or shares with nothing to go on", () => {
-    expect(summarizeReviews([])).toEqual({
-      count: 0,
-      averageRating: null,
-      worthItShare: null,
-      wouldPurchaseAgainShare: null,
-      notWorthItSpend: 0,
-    });
+  it("narrows by type, category, worth it and would buy again", () => {
+    expect(ids({ type: "Experience", category: "Food" })).toEqual(["new", "old", "undated"]);
+    expect(ids({ worthIt: true })).toEqual(["old"]);
+    expect(ids({ worthIt: false, type: "Experience" })).toEqual(["new", "undated"]);
+    expect(ids({ wouldPurchaseAgain: true })).toEqual(["item"]);
+  });
+
+  it("searches every word, in any case, across name, category, notes and extra text", () => {
+    expect(ids({ query: "LOUD" })).toEqual(["new"]);
+    expect(ids({ query: "food too" })).toEqual(["new"]);
+    expect(ids({ query: "tech" })).toEqual(["item"]);
+    expect(ids({ query: "kathmandu" }, (r) => (r.id === "old" ? "Kathmandu" : ""))).toEqual(["old"]);
+    expect(ids({ query: "nothing like this" })).toEqual([]);
+  });
+
+  it("sorts by rating or price, highest first, with the missing ones last", () => {
+    expect(ids({ sort: "Highest rated" })).toEqual(["old", "item", "new", "undated"]);
+    expect(ids({ sort: "Most expensive" })).toEqual(["item", "new", "old", "undated"]);
+  });
+
+  it("keeps only reviews with every chosen tag, and searches tags too", () => {
+    const tagged = [review("a", { tags: ["Gift", "Travel"] }), review("b", { tags: ["Travel"] }), review("c")];
+    const ids = (filter: Partial<ReviewFilter>) => filterReviews(tagged, { ...NO_FILTER, ...filter }).map((r) => r.id);
+    expect(ids({ tags: ["Travel"] })).toEqual(["a", "b"]);
+    expect(ids({ tags: ["Travel", "Gift"] })).toEqual(["a"]);
+    expect(ids({ query: "gift" })).toEqual(["a"]);
+    expect(isFiltering({ ...NO_FILTER, tags: ["Gift"] })).toBe(true);
+  });
+
+  it("knows when it's filtering, which the sort alone isn't", () => {
+    expect(isFiltering(NO_FILTER)).toBe(false);
+    expect(isFiltering({ ...NO_FILTER, sort: "Highest rated" })).toBe(false);
+    expect(isFiltering({ ...NO_FILTER, query: " x " })).toBe(true);
+    expect(isFiltering({ ...NO_FILTER, worthIt: false })).toBe(true);
   });
 });
 

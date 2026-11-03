@@ -10,6 +10,7 @@ type NotionProperty = {
   rich_text?: RichText;
   number?: number | null;
   select?: { name: string } | null;
+  multi_select?: { name: string }[];
   checkbox?: boolean;
   date?: { start: string } | null;
   relation?: { id: string }[];
@@ -67,8 +68,27 @@ export async function getReviews(): Promise<Review[]> {
         date: p.Date?.date?.start?.slice(0, 10) ?? null,
         spendingId: p["Spending entry"]?.relation?.[0]?.id ?? null,
         notes: text(p.Notes),
+        tags: (p.Tags?.multi_select ?? []).map((t) => t.name),
         image: imageFrom(p.Image),
       };
     })
     .filter((r) => r.name);
+}
+
+/**
+ * The full tag list: the options on the Tags column, in Notion's order —
+ * including ones no review uses any more, so they can still be picked.
+ */
+export async function getReviewTags(): Promise<string[]> {
+  const databaseId = process.env.NOTION_REVIEWS_ID;
+  const apiKey = process.env.NOTION_API_KEY;
+  if (!databaseId || !apiKey) return [];
+
+  const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
+    headers: { Authorization: `Bearer ${apiKey}`, "Notion-Version": "2022-06-28" },
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.properties?.Tags?.multi_select?.options ?? []).map((o: { name: string }) => o.name);
 }

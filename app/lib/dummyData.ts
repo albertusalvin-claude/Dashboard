@@ -233,6 +233,7 @@ export function dummyReviews(): Review[] {
       date: daysAgo(8),
       spendingId: "d-sp-3",
       notes: "Comfortable from the first run; the grip on wet paths is the real win.",
+      tags: ["Everyday", "Fitness"],
       image: picture("R", "#4E7043", "#1B3327"),
     }),
     review("dinner", {
@@ -245,6 +246,7 @@ export function dummyReviews(): Review[] {
       wouldPurchaseAgain: false,
       date: daysAgo(14),
       spendingId: "d-sp-5",
+      tags: ["With friends"],
       notes: "Good company, but the food was loud and the wait was long. Somewhere quieter next time.",
     }),
     review("badminton", {
@@ -257,6 +259,7 @@ export function dummyReviews(): Review[] {
       wouldPurchaseAgain: true,
       date: daysAgo(35),
       spendingId: "d-sp-8",
+      tags: ["Fitness", "With friends"],
       image: picture("B", "#B4832A", "#CB3A1E"),
     }),
     review("kettle", {
@@ -269,6 +272,7 @@ export function dummyReviews(): Review[] {
       wouldPurchaseAgain: false,
       date: daysAgo(50),
       notes: "Lid rattles and the display died after two months.",
+      tags: ["Everyday"],
     }),
     review("gallery", {
       name: "Gallery late night",
@@ -276,11 +280,12 @@ export function dummyReviews(): Review[] {
       category: "Culture",
       rating: 7.5,
       price: 0,
+      tags: ["Free"],
       worthIt: true,
       wouldPurchaseAgain: true,
       date: daysAgo(62),
     }),
-    review("headphones", { name: "Gift headphones", type: "Item", category: "Tech", rating: null, price: null, notes: "A present — haven't tried them yet." }),
+    review("headphones", { name: "Gift headphones", type: "Item", category: "Tech", rating: null, price: null, notes: "A present — haven't tried them yet.", tags: ["Gift"] }),
   ];
 }
 

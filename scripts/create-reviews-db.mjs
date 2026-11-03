@@ -60,6 +60,9 @@ function schema(spendingId) {
     Date: { date: {} },
     Notes: { rich_text: {} },
     Image: { files: {} },
+    // The tag list is this column's options: Notion adds a new one the first
+    // time a review is saved with it.
+    Tags: { multi_select: {} },
     ...(spendingId ? { "Spending entry": { relation: { database_id: spendingId, single_property: {} } } } : {}),
   };
 }

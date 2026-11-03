@@ -4,23 +4,35 @@ import { useState } from "react";
 import type { SpendingEntry } from "../api/spending/route";
 import {
   RATING_MAX,
+  NO_FILTER,
+  REVIEW_SORTS,
   REVIEW_TYPES,
   filterReviews,
   formatPrice,
   formatRating,
+  isFiltering,
   reviewCategories,
-  summarizeReviews,
   type Review,
-  type ReviewType,
+  type ReviewFilter,
+  type ReviewSort,
 } from "../lib/reviews";
 import ReviewForm from "./ReviewForm";
 
 type Props = {
   /** Null when the Notion database isn't configured. */
   reviews: Review[] | null;
+  /** The Tags column's options: every tag, used or not. */
+  tagOptions: string[];
   /** Newest first, to link reviews to purchases. */
   spending: SpendingEntry[];
 };
+
+const selectCls =
+  "font-mono text-xs rounded-full border border-line bg-card px-2.5 py-1 text-ink-soft focus:outline-none focus:border-ink-soft cursor-pointer";
+
+// A yes/no filter's <select> value: "" for either.
+const yesNo = (value: boolean | null) => (value === null ? "" : value ? "yes" : "no");
+const fromYesNo = (value: string) => (value === "" ? null : value === "yes");
 
 const chipCls = (active: boolean) =>
   `font-mono text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer ${
@@ -30,22 +42,10 @@ const chipCls = (active: boolean) =>
 // Green for a good score, gold for middling, chili for poor.
 const ratingColor = (rating: number) => (rating >= 8 ? "var(--kale)" : rating >= 5 ? "var(--gold)" : "var(--chili)");
 
-const percent = (share: number | null) => (share === null ? "—" : `${Math.round(share * 100)}%`);
-
 /** "12 Oct 2026" from YYYY-MM-DD, read as a calendar date. */
 function formatDate(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="bg-card border border-line rounded-2xl px-4 py-3">
-      <p className="text-xs font-mono uppercase tracking-wide text-ink-soft">{label}</p>
-      <p className="font-display font-bold text-2xl text-ink mt-1">{value}</p>
-      {hint && <p className="text-xs text-ink-soft mt-0.5">{hint}</p>}
-    </div>
-  );
 }
 
 function Verdict({ yes, label }: { yes: boolean; label: string }) {
@@ -66,9 +66,10 @@ function ReviewCard({ review, purchase, onOpen }: { review: Review; purchase?: S
       className="text-left bg-card border border-line rounded-2xl p-4 hover:border-ink-soft transition-colors cursor-pointer flex flex-col gap-3 min-w-0"
     >
       {review.image && (
-        // Notion's links expire within the hour, so a page left open that
-        // long hides the photo rather than showing a broken one; a reload
-        // fetches fresh links.
+        // A landscape crop so every card lines up; the edit form shows the
+        // whole photo. Notion's links expire within the hour, so a page left
+        // open that long hides the photo rather than showing a broken one; a
+        // reload fetches fresh links.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={review.image.url}
@@ -109,6 +110,16 @@ function ReviewCard({ review, purchase, onOpen }: { review: Review; purchase?: S
 
       {review.notes && <p className="text-sm text-ink-soft line-clamp-2 break-words">{review.notes}</p>}
 
+      {review.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {review.tags.map((tag) => (
+            <span key={tag} className="font-mono text-[11px] px-2 py-0.5 rounded-full text-blueberry bg-[rgba(64,58,122,0.1)]">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="mt-auto flex items-center justify-between gap-3 font-mono text-xs text-ink-soft">
         <span className="text-ink">{formatPrice(review.price)}</span>
         <span className="truncate">
@@ -121,9 +132,9 @@ function ReviewCard({ review, purchase, onOpen }: { review: Review; purchase?: S
 }
 
 /** The Experience tab: things bought and done, each rated and judged on value. */
-export default function ReviewsTab({ reviews, spending }: Props) {
-  const [type, setType] = useState<ReviewType | null>(null);
-  const [category, setCategory] = useState<string | null>(null);
+export default function ReviewsTab({ reviews, tagOptions, spending }: Props) {
+  const [filter, setFilter] = useState<ReviewFilter>(NO_FILTER);
+  const update = (change: Partial<ReviewFilter>) => setFilter((f) => ({ ...f, ...change }));
   // "new" for the add form, a review to edit, or null when closed.
   const [open, setOpen] = useState<Review | "new" | null>(null);
 
@@ -138,11 +149,20 @@ export default function ReviewsTab({ reviews, spending }: Props) {
   }
 
   const categories = reviewCategories(reviews);
-  // A category that no longer has any reviews falls back to all of them.
-  const activeCategory = category !== null && categories.includes(category) ? category : null;
-  const shown = filterReviews(reviews, { type, category: activeCategory });
-  const summary = summarizeReviews(shown);
+  // Every tag: the column's options, plus any on a review that isn't one yet.
+  const allTags = [...new Set([...tagOptions, ...reviews.flatMap((r) => r.tags)])];
   const purchases = new Map(spending.map((s) => [s.id, s]));
+  // A category or tag that no longer exists is dropped from the filter.
+  const active = {
+    ...filter,
+    category: filter.category !== null && categories.includes(filter.category) ? filter.category : null,
+    tags: filter.tags.filter((t) => allTags.includes(t)),
+  };
+  // The store it was bought from is searchable too, when it's linked.
+  const shown = filterReviews(reviews, active, (r) => {
+    const purchase = r.spendingId ? purchases.get(r.spendingId) : undefined;
+    return purchase ? `${purchase.store} ${purchase.item}` : "";
+  });
   const categorySuggestions = [...new Set([...categories, ...spending.map((s) => s.category).filter(Boolean)])].sort();
 
   return (
@@ -157,41 +177,96 @@ export default function ReviewsTab({ reviews, spending }: Props) {
         </button>
       </div>
 
-      {/* Of what's showing, so a filter answers "how are my restaurant picks doing?". */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat
-          label="Average rating"
-          value={summary.averageRating === null ? "—" : `${formatRating(Math.round(summary.averageRating * 10) / 10)}/${RATING_MAX}`}
-          hint={`${summary.count} review${summary.count === 1 ? "" : "s"}`}
+      <div className="space-y-2">
+        <input
+          type="search"
+          value={filter.query}
+          onChange={(e) => update({ query: e.target.value })}
+          placeholder="Search names, notes, categories, stores…"
+          aria-label="Search reviews"
+          className="w-full rounded-full border border-line bg-card px-4 py-2 text-sm text-ink placeholder:text-ink-soft/60 focus:outline-none focus:border-ink-soft"
         />
-        <Stat label="Worth it" value={percent(summary.worthItShare)} />
-        <Stat label="Would buy again" value={percent(summary.wouldPurchaseAgainShare)} />
-        <Stat label="Spent, not worth it" value={formatPrice(summary.notWorthItSpend)} />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button onClick={() => setType(null)} className={chipCls(type === null)}>
-          All
-        </button>
-        {REVIEW_TYPES.map((t) => (
-          <button key={t} onClick={() => setType(t)} className={chipCls(type === t)}>
-            {t === "Item" ? "Items" : "Experiences"}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button onClick={() => update({ type: null })} className={chipCls(active.type === null)}>
+            All
           </button>
-        ))}
-        {categories.length > 0 && (
+          {REVIEW_TYPES.map((t) => (
+            <button key={t} onClick={() => update({ type: t })} className={chipCls(active.type === t)}>
+              {t === "Item" ? "Items" : "Experiences"}
+            </button>
+          ))}
+          {categories.length > 0 && (
+            <select value={active.category ?? ""} onChange={(e) => update({ category: e.target.value || null })} aria-label="Category" className={selectCls}>
+              <option value="">Any category</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+          <select value={yesNo(active.worthIt)} onChange={(e) => update({ worthIt: fromYesNo(e.target.value) })} aria-label="Worth it" className={selectCls}>
+            <option value="">Worth it: any</option>
+            <option value="yes">Worth it</option>
+            <option value="no">Not worth it</option>
+          </select>
           <select
-            value={activeCategory ?? ""}
-            onChange={(e) => setCategory(e.target.value || null)}
-            aria-label="Category"
-            className="ml-auto font-mono text-xs rounded-full border border-line bg-card px-2.5 py-1 text-ink-soft focus:outline-none focus:border-ink-soft cursor-pointer"
+            value={yesNo(active.wouldPurchaseAgain)}
+            onChange={(e) => update({ wouldPurchaseAgain: fromYesNo(e.target.value) })}
+            aria-label="Would buy again"
+            className={selectCls}
           >
-            <option value="">All categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            <option value="">Buy again: any</option>
+            <option value="yes">Would buy again</option>
+            <option value="no">Wouldn&apos;t buy again</option>
+          </select>
+          {allTags.length > 0 && (
+            // Picking adds a tag; several narrow to reviews that have all of them.
+            <select
+              value=""
+              onChange={(e) => e.target.value && update({ tags: [...active.tags, e.target.value] })}
+              aria-label="Tag"
+              className={selectCls}
+            >
+              <option value="">{active.tags.length ? "Add tag…" : "Tag: any"}</option>
+              {allTags
+                .filter((t) => !active.tags.includes(t))
+                .map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+            </select>
+          )}
+          {active.tags.map((tag) => (
+            <span key={tag} className="inline-flex items-center gap-1 font-mono text-xs pl-2.5 pr-1 py-1 rounded-full bg-blueberry text-paper">
+              {tag}
+              <button
+                onClick={() => update({ tags: active.tags.filter((t) => t !== tag) })}
+                aria-label={`Stop filtering by ${tag}`}
+                className="px-1 opacity-70 hover:opacity-100 cursor-pointer"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <select value={active.sort} onChange={(e) => update({ sort: e.target.value as ReviewSort })} aria-label="Sort" className={`${selectCls} sm:ml-auto`}>
+            {REVIEW_SORTS.map((sort) => (
+              <option key={sort} value={sort}>
+                {sort}
               </option>
             ))}
           </select>
+        </div>
+        {reviews.length > 0 && (
+          <p className="font-mono text-xs text-ink-soft px-1">
+            {isFiltering(active) ? `${shown.length} of ${reviews.length}` : `${reviews.length}`} review{reviews.length === 1 ? "" : "s"}
+            {isFiltering(active) && (
+              <button onClick={() => setFilter({ ...NO_FILTER, sort: filter.sort })} className="ml-2 underline hover:text-ink cursor-pointer">
+                Clear
+              </button>
+            )}
+          </p>
         )}
       </div>
 
@@ -200,7 +275,7 @@ export default function ReviewsTab({ reviews, spending }: Props) {
           {reviews.length === 0 ? "No reviews yet — add the last thing you bought or did." : "Nothing matches these filters."}
         </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {shown.map((r) => (
             <ReviewCard key={r.id} review={r} purchase={r.spendingId ? purchases.get(r.spendingId) : undefined} onOpen={() => setOpen(r)} />
           ))}
@@ -214,6 +289,7 @@ export default function ReviewsTab({ reviews, spending }: Props) {
           review={open === "new" ? undefined : open}
           spending={spending}
           categorySuggestions={categorySuggestions}
+          tagOptions={allTags}
           onClose={() => setOpen(null)}
         />
       )}

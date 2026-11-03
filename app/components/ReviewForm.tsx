@@ -8,6 +8,7 @@ import {
   RATING_MAX,
   REVIEW_TYPES,
   blankReview,
+  cleanTag,
   draftOf,
   formatPrice,
   linkSpending,
@@ -45,11 +46,85 @@ type Props = {
   /** Newest first, to link the review to what it was bought with. */
   spending: SpendingEntry[];
   categorySuggestions: string[];
+  /** Every existing tag, to pick from. */
+  tagOptions: string[];
   onClose: () => void;
 };
 
+/**
+ * The review's tags as removable chips, a box to type a new one (Enter or a
+ * comma adds it), and the existing tags not on it yet to tap.
+ */
+function TagPicker({ id, tags, options, onChange }: { id: string; tags: string[]; options: string[]; onChange: (tags: string[]) => void }) {
+  const [typed, setTyped] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+
+  function add(raw: string) {
+    if (!raw.trim()) return;
+    const tag = cleanTag(raw, [...options, ...tags]);
+    if (!tag) {
+      setProblem("Tags can't contain commas or run past 100 characters.");
+      return;
+    }
+    if (!tags.includes(tag)) onChange([...tags, tag]);
+    setTyped("");
+    setProblem(null);
+  }
+
+  const unused = options.filter((t) => !tags.includes(t));
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {tags.map((tag) => (
+          <span key={tag} className="inline-flex items-center gap-1 font-mono text-xs pl-2 pr-1 py-0.5 rounded-full bg-blueberry text-paper">
+            {tag}
+            <button type="button" onClick={() => onChange(tags.filter((t) => t !== tag))} aria-label={`Remove ${tag}`} className="px-1 opacity-70 hover:opacity-100 cursor-pointer">
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          id={id}
+          value={typed}
+          onChange={(e) => {
+            // A comma ends the tag being typed, since tags can't contain one.
+            if (e.target.value.includes(",")) add(e.target.value.replace(/,/g, ""));
+            else setTyped(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add(typed);
+            } else if (e.key === "Backspace" && !typed && tags.length) {
+              onChange(tags.slice(0, -1));
+            }
+          }}
+          onBlur={() => add(typed)}
+          placeholder={tags.length ? "Add another…" : "Type a tag, then Enter"}
+          className="flex-1 min-w-32 bg-transparent px-1 py-0.5 text-sm text-ink placeholder:text-ink-soft/60 focus:outline-none"
+        />
+      </div>
+      {unused.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {unused.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => onChange([...tags, tag])}
+              className="font-mono text-[11px] px-2 py-0.5 rounded-full border border-dashed border-line text-ink-soft hover:border-ink-soft hover:text-ink cursor-pointer"
+            >
+              + {tag}
+            </button>
+          ))}
+        </div>
+      )}
+      {problem && <p className="text-xs text-chili">{problem}</p>}
+    </div>
+  );
+}
+
 /** Adds or edits a review. Full-screen on a phone, a dialog from sm up. */
-export default function ReviewForm({ review, spending, categorySuggestions, onClose }: Props) {
+export default function ReviewForm({ review, spending, categorySuggestions, tagOptions, onClose }: Props) {
   const router = useRouter();
   const id = useId();
   const isDummy = useIsDummyRoute();
@@ -281,12 +356,19 @@ export default function ReviewForm({ review, spending, categorySuggestions, onCl
           </label>
         </div>
 
+        <Field label="Tags" htmlFor={`${id}-tags`}>
+          <div className="rounded-lg border border-line bg-paper px-2 py-1.5 focus-within:border-ink-soft">
+            <TagPicker id={`${id}-tags`} tags={draft.tags} options={tagOptions} onChange={(tags) => set("tags", tags)} />
+          </div>
+        </Field>
+
         <Field label="Photo" htmlFor={`${id}-photo`}>
           {shownPhoto && (
             // A plain <img>: Notion's links expire within the hour, so
-            // there's nothing for Next's image optimiser to cache.
+            // there's nothing for Next's image optimiser to cache. Shown
+            // whole, at its own shape, unlike the cropped card.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={shownPhoto} alt="" className="w-full max-h-56 object-cover rounded-lg border border-line" />
+            <img src={shownPhoto} alt="" className="block w-full h-auto max-h-[60vh] object-contain bg-card sm:bg-paper rounded-lg border border-line" />
           )}
           <div className="flex flex-wrap items-center gap-2">
             <label
