@@ -112,6 +112,10 @@ const DATABASES = [
       },
       "Due date": { date: {} },
       Description: { rich_text: {} },
+      // Text like "Every Mon, Thu" or "Monthly on the 15th"; see app/lib/recurrence.ts.
+      Repeat: { rich_text: {} },
+      // The day it moved to Done; the dashboard sets and clears it.
+      Completed: { date: {} },
     },
     // A relation to its own database can only point at an id that exists, so
     // it's added once the database has been created.

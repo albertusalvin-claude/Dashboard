@@ -8,6 +8,7 @@ import {
   type Projects,
   type Task,
 } from "./actionables";
+import { bringBackRecurring, parseRepeat } from "./recurrence";
 
 export function isHabitsConfigured(): boolean {
   return Boolean(process.env.NOTION_HABITS_ID && process.env.NOTION_API_KEY);
@@ -104,11 +105,52 @@ export async function getTasks(): Promise<Task[]> {
         dueDate: p["Due date"]?.date?.start ?? null,
         description: text(p.Description),
         parentId: p["Parent task"]?.relation?.[0]?.id ?? null,
+        repeat: parseRepeat(text(p.Repeat)),
+        completedOn: p.Completed?.date?.start?.slice(0, 10) ?? null,
         createdTime: page.created_time,
         lastEditedTime: page.last_edited_time,
       };
     })
     .filter((t) => t.name);
+}
+
+/**
+ * Moves recurring tasks that are due again back to Todo in Notion, and
+ * returns the tasks as they now stand. Runs as the tab loads, so a task comes
+ * back the first time it's opened on or after its next date. One that fails
+ * to save stays as it was, and is tried again next load.
+ */
+export async function returnRecurringTasks(tasks: Task[], today: string): Promise<Task[]> {
+  const apiKey = process.env.NOTION_API_KEY;
+  const returned = bringBackRecurring(tasks, today);
+  if (!apiKey || returned.changes.length === 0) return tasks;
+
+  // Saving the move of recuring tasks back into notion
+  const saved = await Promise.all(
+    returned.changes.map(async ({ id, dueDate }) => {
+      // Back in Todo, so no longer completed. Only cleared when it was set,
+      // since a database without the column would reject the write.
+      const wasCompleted = tasks.find((t) => t.id === id)?.completedOn;
+      const res = await fetch(`https://api.notion.com/v1/pages/${id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          properties: {
+            Status: { select: { name: "Todo" } },
+            ...(dueDate ? { "Due date": { date: { start: dueDate } } } : {}),
+            ...(wasCompleted ? { Completed: { date: null } } : {}),
+          },
+        }),
+      });
+      return res.ok ? id : null;
+    })
+  );
+  const ok = new Set(saved);
+  return returned.tasks.map((t, i) => (ok.has(t.id) ? t : tasks[i]));
 }
 
 type Options = { options?: { name: string }[] };

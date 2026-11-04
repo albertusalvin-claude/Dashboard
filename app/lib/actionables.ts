@@ -1,6 +1,8 @@
 // Shapes for the Actionables tab — the Habits and Tasks Notion databases.
 // Pure, so the server (reading/writing Notion) and the client share it.
 
+import type { Repeat } from "./recurrence";
+
 export const TASK_STATUSES = ["Todo", "Doing", "Done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
@@ -99,12 +101,19 @@ export type Task = {
   description: string;
   /** Set on a subtask: the task it belongs to. */
   parentId: string | null;
+  /** When it comes back to Todo after it's done; null if it doesn't. */
+  repeat: Repeat | null;
+  /** YYYY-MM-DD it moved to Done, set by the dashboard; null otherwise. */
+  completedOn: string | null;
   createdTime: string;
   lastEditedTime: string;
 };
 
 export type HabitDraft = Pick<Habit, "name" | "order" | "status" | "category" | "endDate" | "description">;
-export type TaskDraft = Pick<Task, "name" | "order" | "status" | "project" | "dueDate" | "description" | "parentId">;
+export type TaskDraft = Pick<
+  Task,
+  "name" | "order" | "status" | "project" | "dueDate" | "description" | "parentId" | "repeat" | "completedOn"
+>;
 
 export function taskStatusFrom(name: string | undefined): TaskStatus {
   return TASK_STATUSES.find((s) => s.toLowerCase() === name?.trim().toLowerCase()) ?? "Todo";

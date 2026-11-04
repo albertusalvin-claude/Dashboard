@@ -18,6 +18,7 @@ import {
   type Task,
   type TaskStatus,
 } from "../lib/actionables";
+import { formatRepeat } from "../lib/recurrence";
 import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
 import ActionableDetail, { type Selection } from "./ActionableDetail";
 import ProjectBar, { chipCls } from "./ProjectBar";
@@ -32,7 +33,7 @@ type Props = {
   today: string;
 };
 
-type Move = { id: string; order: number; status?: TaskStatus | HabitStatus };
+type Move = { id: string; order: number; status?: TaskStatus | HabitStatus; completedOn?: string | null };
 
 // Each task group lists this many top-level tasks until Show more.
 const TASKS_SHOWN = 4;
@@ -219,8 +220,14 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
     const shown = groups[status].map((g) => g.task.id).filter((id) => id !== dragged.id);
     const before = beforeId ?? (shown.length ? (allIds[allIds.indexOf(shown[shown.length - 1]) + 1] ?? null) : null);
     const ids = reordered(allIds, dragged.id, before);
+    const statusChanged = moving.status !== status;
     const moves: Move[] = ids
-      .map((id, order) => ({ id, order, status: id === dragged.id && moving.status !== status ? status : undefined }))
+      .map((id, order): Move =>
+        id === dragged.id && statusChanged
+          ? // Completed is today when it lands in Done, and cleared when it leaves.
+            { id, order, status, completedOn: status === "Done" ? today : null }
+          : { id, order }
+      )
       .filter(({ id, order, status: changed }) => changed || tasks.find((t) => t.id === id)?.order !== order);
     setTasks((current) => applyMoves(current, moves));
     persist(moves);
@@ -402,7 +409,7 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
                             name={task.name}
                             nameClass={task.status === "Done" ? "line-through text-ink-soft" : "text-ink"}
                             meta={
-                              (task.dueDate || !project) && (
+                              (task.dueDate || task.repeat || !project) && (
                                 <>
                                   {/* Which project, when they're all showing. */}
                                   {!project && (
@@ -414,6 +421,9 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
                                     <span className={`font-mono text-xs ${overdue ? "text-chili font-bold" : "text-ink-soft"}`}>
                                       due {formatDate(task.dueDate)}
                                     </span>
+                                  )}
+                                  {task.repeat && (
+                                    <span className="font-mono text-xs text-ink-soft">↻ {formatRepeat(task.repeat)}</span>
                                   )}
                                 </>
                               )

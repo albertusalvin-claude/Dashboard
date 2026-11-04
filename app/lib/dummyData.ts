@@ -515,6 +515,8 @@ export function dummyTasks(): Task[] {
     dueDate: null,
     description: "",
     parentId: null,
+    repeat: null,
+    completedOn: null,
     createdTime: stampDaysAgo(20 - order),
     lastEditedTime: stampDaysAgo(1, 14),
     ...extra,
@@ -539,5 +541,10 @@ export function dummyTasks(): Task[] {
     task(0, "Switch electricity plan", "Done", { project: "Admin", description: "Saved ~$140/yr." }),
     task(1, "Dentist check-up", "Done"),
     task(2, "Build the raised veggie bed", "Done", { project: "Garden" }),
+    // Recurring: the first was done four days ago, so it comes back to Todo as
+    // the page loads; the second was done yesterday and stays Done for now.
+    task(3, "Water the plants", "Done", { project: "Home", repeat: { kind: "weekdays", days: [1, 4] }, completedOn: daysAgo(4) }),
+    task(4, "Take out the bins", "Done", { project: "Home", dueDate: daysAgo(1), repeat: { kind: "weekdays", days: [2] }, completedOn: daysAgo(1) }),
+    task(4, "Pay rent", "Todo", { project: "Admin", dueDate: daysAgo(-10), repeat: { kind: "monthDay", day: 1 } }),
   ];
 }

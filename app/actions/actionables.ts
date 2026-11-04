@@ -12,6 +12,7 @@ import {
   type TaskStatus,
 } from "../lib/actionables";
 import { getTasks } from "../lib/getActionables";
+import { formatRepeat } from "../lib/recurrence";
 
 type Result = { ok: true } | { ok: false; error: string };
 /** An add also returns the new page's id, so the panel can stay open on it. */
@@ -59,6 +60,8 @@ function taskProperties(draft: TaskDraft): Record<string, unknown> {
     "Due date": date(draft.dueDate),
     Description: richText(draft.description),
     "Parent task": { relation: draft.parentId ? [{ id: draft.parentId }] : [] },
+    Repeat: richText(draft.repeat ? formatRepeat(draft.repeat) : ""),
+    Completed: date(draft.completedOn),
   };
 }
 
@@ -101,13 +104,13 @@ async function patchAll(updates: { id: string; body: Record<string, unknown> }[]
 const ensured = new Set<string>();
 
 /**
- * Makes sure the database has a Select column of this name before a page
+ * Makes sure the database has a column of this name and type before a page
  * writes to it. Notion adds new options to a select by itself, but rejects a
  * write to a column that doesn't exist — Habits had no Status until this
  * dashboard gave them one.
  */
-async function ensureSelectColumn(envVar: string, name: string): Promise<Result> {
-  const key = `${envVar}:${name}`;
+async function ensureColumn(envVar: string, name: string, type: "select" | "rich_text" | "date" = "select"): Promise<Result> {
+  const key = `${envVar}:${name}:${type}`;
   if (ensured.has(key)) return { ok: true };
   const databaseId = process.env[envVar];
   const apiKey = process.env.NOTION_API_KEY;
@@ -120,14 +123,15 @@ async function ensureSelectColumn(envVar: string, name: string): Promise<Result>
   if (!res.ok) return { ok: false, error: await res.text() };
   const existing = (await res.json()).properties?.[name];
 
-  if (existing && existing.type !== "select") {
-    return { ok: false, error: `${name} in Notion is a ${existing.type} column; the dashboard needs it to be a Select.` };
+  if (existing && existing.type !== type) {
+    const wanted = { select: "Select", rich_text: "Text", date: "Date" }[type];
+    return { ok: false, error: `${name} in Notion is a ${existing.type} column; the dashboard needs it to be ${wanted}.` };
   }
   if (!existing) {
     const created = await fetch(`https://api.notion.com/v1/databases/${databaseId}`, {
       method: "PATCH",
       headers: NOTION_HEADERS(apiKey),
-      body: JSON.stringify({ properties: { [name]: { select: {} } } }),
+      body: JSON.stringify({ properties: { [name]: { [type]: {} } } }),
     });
     if (!created.ok) return { ok: false, error: await created.text() };
   }
@@ -135,8 +139,19 @@ async function ensureSelectColumn(envVar: string, name: string): Promise<Result>
   return { ok: true };
 }
 
-const ensureHabitStatus = () => ensureSelectColumn("NOTION_HABITS_ID", "Status");
-const ensureTaskProject = () => ensureSelectColumn("NOTION_TASKS_ID", "Project");
+const ensureHabitStatus = () => ensureColumn("NOTION_HABITS_ID", "Status");
+
+const ensureTaskCompleted = () => ensureColumn("NOTION_TASKS_ID", "Completed", "date");
+
+// A task save writes Project, Repeat and Completed, which older Tasks
+// databases lack.
+async function ensureTaskColumns(): Promise<Result> {
+  const projectColumn = await ensureColumn("NOTION_TASKS_ID", "Project");
+  if (!projectColumn.ok) return projectColumn;
+  const repeatColumn = await ensureColumn("NOTION_TASKS_ID", "Repeat", "rich_text");
+  if (!repeatColumn.ok) return repeatColumn;
+  return ensureTaskCompleted();
+}
 
 export async function addHabit(draft: HabitDraft): Promise<Created> {
   if (!draft.name.trim()) return { ok: false, error: "A name is required." };
@@ -154,7 +169,7 @@ export async function updateHabit(pageId: string, draft: HabitDraft): Promise<Re
 
 export async function addTask(draft: TaskDraft): Promise<Created> {
   if (!draft.name.trim()) return { ok: false, error: "A name is required." };
-  const column = await ensureTaskProject();
+  const column = await ensureTaskColumns();
   if (!column.ok) return column;
   return createPage("NOTION_TASKS_ID", taskProperties(draft));
 }
@@ -162,7 +177,7 @@ export async function addTask(draft: TaskDraft): Promise<Created> {
 /** Subtasks are passed so they move with their parent to its project. */
 export async function updateTask(pageId: string, draft: TaskDraft, subtaskIds: string[] = []): Promise<Result> {
   if (!draft.name.trim()) return { ok: false, error: "A name is required." };
-  const column = await ensureTaskProject();
+  const column = await ensureTaskColumns();
   if (!column.ok) return column;
   return patchAll([
     { id: pageId, body: { properties: taskProperties(draft) } },
@@ -170,19 +185,32 @@ export async function updateTask(pageId: string, draft: TaskDraft, subtaskIds: s
   ]);
 }
 
-/** Saves a drag: new Order values, and a new Status for whatever changed group. */
+/**
+ * Saves a drag: new Order values, and a new Status for whatever changed
+ * group. A task changing status also sets or clears its Completed date.
+ */
 export async function moveActionables(
-  updates: { id: string; order: number; status?: TaskStatus | HabitStatus }[]
+  updates: { id: string; order: number; status?: TaskStatus | HabitStatus; completedOn?: string | null }[]
 ): Promise<Result> {
   // Habit and task statuses don't share names, so this tells them apart.
   if (updates.some((u) => (HABIT_STATUSES as readonly string[]).includes(u.status ?? ""))) {
     const column = await ensureHabitStatus();
     if (!column.ok) return column;
   }
+  if (updates.some((u) => u.completedOn !== undefined)) {
+    const column = await ensureTaskCompleted();
+    if (!column.ok) return column;
+  }
   return patchAll(
-    updates.map(({ id, order, status }) => ({
+    updates.map(({ id, order, status, completedOn }) => ({
       id,
-      body: { properties: { Order: { number: order }, ...(status ? { Status: { select: { name: status } } } : {}) } },
+      body: {
+        properties: {
+          Order: { number: order },
+          ...(status ? { Status: { select: { name: status } } } : {}),
+          ...(completedOn !== undefined ? { Completed: date(completedOn) } : {}),
+        },
+      },
     }))
   );
 }

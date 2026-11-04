@@ -22,6 +22,8 @@ const task = (id: string, status: Task["status"], order: number, parentId: strin
   dueDate: null,
   description: "",
   parentId,
+  repeat: null,
+  completedOn: null,
   createdTime: "",
   lastEditedTime: "",
 });

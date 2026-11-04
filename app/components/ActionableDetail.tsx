@@ -11,6 +11,7 @@ import {
   HABIT_STATUS_COLOR,
   STATUS_COLOR,
   TASK_STATUSES,
+  formatDate,
   formatTimestamp,
   type Habit,
   type HabitCategory,
@@ -21,6 +22,8 @@ import {
   type TaskStatus,
 } from "../lib/actionables";
 import { DUMMY_WRITE_MESSAGE, useIsDummyRoute } from "../lib/useIsDummyRoute";
+import { melbourneDay } from "../lib/recurrence";
+import RepeatPicker from "./RepeatPicker";
 
 export type Selection =
   | { kind: "habit"; id: string }
@@ -94,6 +97,8 @@ export default function ActionableDetail({ selection, habits, tasks, projects, n
       dueDate: null,
       description: "",
       parentId,
+      repeat: null,
+      completedOn: null,
     }
   );
   const name = isHabit ? habitDraft.name : taskDraft.name;
@@ -131,6 +136,11 @@ export default function ActionableDetail({ selection, habits, tasks, projects, n
     });
   }
 
+  // Completed is today when the task becomes Done here, kept while it stays
+  // Done, and cleared when it isn't.
+  const completedOn =
+    taskDraft.status !== "Done" ? null : task?.status === "Done" ? task.completedOn : melbourneDay();
+
   function save() {
     // Order comes from the item as it stands, not the draft, so a drag made
     // while the panel was open isn't undone by saving.
@@ -140,14 +150,14 @@ export default function ActionableDetail({ selection, habits, tasks, projects, n
         () =>
           updateTask(
             task.id,
-            { ...taskDraft, order: task.order },
+            { ...taskDraft, order: task.order, completedOn },
             // Its subtasks follow it to a new project.
             taskDraft.project !== task.project ? subtasks.map((s) => s.id) : []
           ),
         () => setSaved(true)
       );
     else if (isHabit) run(() => addHabit(habitDraft), (r) => r.id && onSelect({ kind: "habit", id: r.id }));
-    else run(() => addTask(taskDraft), (r) => r.id && onSelect({ kind: "task", id: r.id }));
+    else run(() => addTask({ ...taskDraft, completedOn }), (r) => r.id && onSelect({ kind: "task", id: r.id }));
   }
 
   function remove() {
@@ -206,6 +216,7 @@ export default function ActionableDetail({ selection, habits, tasks, projects, n
         )}
         <MetaRow label="Created">{existing ? formatTimestamp(existing.createdTime) : "—"}</MetaRow>
         <MetaRow label="Last edited">{existing ? formatTimestamp(existing.lastEditedTime) : "—"}</MetaRow>
+        {task?.status === "Done" && task.completedOn && <MetaRow label="Completed">{formatDate(task.completedOn)}</MetaRow>}
         {isHabit ? (
           <>
             <MetaRow label="Status">
@@ -282,6 +293,12 @@ export default function ActionableDetail({ selection, habits, tasks, projects, n
                 </select>
               )}
             </MetaRow>
+            {/* Subtasks come back with their parent instead. */}
+            {!parent && (
+              <MetaRow label="Repeat">
+                <RepeatPicker value={taskDraft.repeat} onChange={(repeat) => setTask("repeat", repeat)} />
+              </MetaRow>
+            )}
             <MetaRow label="Status">
               <select
                 value={taskDraft.status}
