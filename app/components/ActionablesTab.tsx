@@ -34,6 +34,9 @@ type Props = {
 
 type Move = { id: string; order: number; status?: TaskStatus | HabitStatus };
 
+// Each task group lists this many top-level tasks until Show more.
+const TASKS_SHOWN = 4;
+
 // The list's share of the width when the panel is open; the divider between
 // them can be dragged within these bounds. Remembered per browser.
 const SPLIT_KEY = "actionables:split";
@@ -158,6 +161,8 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
   const habitGroups = groupHabits(habits);
   // Which group of habits shows; Active to start with.
   const [habitStatus, setHabitStatus] = useState<HabitStatus>("Active");
+  // Task groups showing all their tasks, not just the first TASKS_SHOWN.
+  const [expanded, setExpanded] = useState<TaskStatus[]>([]);
   const allGroups = groupTasks(tasks);
   const groups = groupTasks(tasks, (p) => (project === null ? !isArchived(p) : p === project));
   const projectCounts: Record<string, number> = {};
@@ -387,7 +392,7 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
                   {groups[status].length === 0 && (
                     <p className="text-sm text-ink-soft italic px-1 py-3">Nothing here — drag a task in.</p>
                   )}
-                  {groups[status].map(({ task, subtasks }) => {
+                  {(expanded.includes(status) ? groups[status] : groups[status].slice(0, TASKS_SHOWN)).map(({ task, subtasks }) => {
                     const overdue = task.dueDate !== null && task.dueDate < today && task.status !== "Done";
                     return (
                       <div key={task.id} className="space-y-1.5">
@@ -433,6 +438,16 @@ export default function ActionablesTab({ habits: serverHabits, tasks: serverTask
                     );
                   })}
                 </div>
+                {groups[status].length > TASKS_SHOWN && (
+                  <button
+                    onClick={() =>
+                      setExpanded((open) => (open.includes(status) ? open.filter((s) => s !== status) : [...open, status]))
+                    }
+                    className="mt-2 w-full font-mono text-xs py-1.5 rounded-xl border border-dashed border-line text-ink-soft hover:border-ink-soft hover:text-ink transition-colors cursor-pointer"
+                  >
+                    {expanded.includes(status) ? "Show less" : `Show ${groups[status].length - TASKS_SHOWN} more`}
+                  </button>
+                )}
               </div>
             ))}
           </div>
